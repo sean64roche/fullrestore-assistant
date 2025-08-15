@@ -11,6 +11,10 @@ RUN --mount=type=bind,source=package.json,target=package.json \
 
 WORKDIR /app/
 
+RUN npm config set -- //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken="${NPM_TOKEN}"
+RUN echo "@fullrestore:registry=https://${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/" > .npmrc
+
+
 COPY package.json ./
 COPY package-lock.json ./
 COPY src ./src
