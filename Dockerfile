@@ -23,6 +23,9 @@ COPY src ./src
 
 RUN npm install
 
+RUN npm config delete //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken
+RUN rm -f .npmrc
+
 WORKDIR /app/src/
 
 RUN ["node", "deploy-commands.js"]
