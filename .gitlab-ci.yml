@@ -23,7 +23,22 @@ docker-build:
   # All branches are tagged with $DOCKER_IMAGE_NAME (defaults to commit ref slug)
   # Default branch is also tagged with `latest`
   script:
-    - docker build --pull -t "$DOCKER_IMAGE_NAME" .
+    - echo "$API_BASEURL" > .env
+    - echo "$API_FORMATS_ENDPOINT" >> .env
+    - echo "$API_PLAYERS_ENDPOINT" >> .env
+    - echo "$API_PLAYER_ALIASES_ENDPOINT" >> .env
+    - echo "$API_TOURNAMENTS_ENDPOINT" >> .env
+    - echo "$API_ROUNDS_ENDPOINT" >> .env
+    - echo "$API_ROUND_BYES_ENDPOINT" >> .env
+    - echo "$API_ENTRANT_PLAYERS_ENDPOINT" >> .env
+    - echo "$API_PAIRINGS_ENDPOINT" >> .env
+    - echo "$API_REPLAYS_ENDPOINT" >> .env
+    - echo "$API_KEY" >> .env
+    - |
+      docker build --pull \
+        --build-arg NPM_TOKEN="${CI_JOB_TOKEN}" \
+        --build-arg CI_SERVER_HOST="${CI_SERVER_HOST}" \
+        -t "$DOCKER_IMAGE_NAME" .
     - docker push "$DOCKER_IMAGE_NAME"
     - |
       if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
