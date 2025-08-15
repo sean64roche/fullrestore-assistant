@@ -6,6 +6,9 @@ ARG CI_SERVER_HOST
 
 WORKDIR /
 
+RUN npm config set -- //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken="${NPM_TOKEN}"
+RUN echo "@fullrestore:registry=https://${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/" > .npmrc
+
 RUN --mount=type=bind,source=package.json,target=package.json \
     --mount=type=bind,source=package-lock.json,target=package-lock.json \
     --mount=type=cache,target=/root/.npm \
@@ -13,12 +16,9 @@ RUN --mount=type=bind,source=package.json,target=package.json \
 
 WORKDIR /app/
 
-RUN npm config set -- //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken="${NPM_TOKEN}"
-RUN echo "@fullrestore:registry=https://${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/" > .npmrc
-
-
 COPY package.json ./
 COPY package-lock.json ./
+COPY tsconfig.json ./
 COPY src ./src
 
 RUN npm install
