@@ -1,16 +1,18 @@
 // Require the necessary discord.js classes
-import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { Client, Collection, Events, GatewayIntentBits } from 'discord.js';
-import { setGlobals } from './globals.js';
-import ALL_COMMANDS from './commands/allcommands.js';
-import 'dotenv/config';
+import { setGlobals } from './globals';
+import ALL_COMMANDS from './commands/allcommands';
+import * as dotenv from "dotenv";
+import { apiConfig, pairingRepo, playerRepo, roundRepo, tournamentRepo } from "./repositories.js";
 
+dotenv.config();
 
 // Create a new client instance
 const client = new Client({ intents: [GatewayIntentBits.Guilds], allowedMentions: { parse: ['users', 'roles'] } });
 
 client.commands = new Collection();
+
+console.log(ALL_COMMANDS);
 
 for (const command of ALL_COMMANDS) {
 	// Set a new item in the Collection with the key as the command name and the value as the exported module
