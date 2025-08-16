@@ -79,7 +79,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     const moderator = interaction.options.getUser('moderator')!;
     const currentRound = interaction.options.getString('round')!;
     const deadline = interaction.options.getString('deadline')!;
-    const leftPlayersId = interaction.options.getString('left')!.split(' ')?.reverse();
+    const leftPlayersId = interaction.options.getString('left')!.split(' ').reverse();
     const rightPlayersId = interaction.options.getString('right')!.split(' ').reverse();
     await interaction.reply(`Processing pairings in ${pool}.`);
     console.log(leftPlayersId);
@@ -109,7 +109,9 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
             name: leftPlayer.user.globalName + " vs " + rightPlayer.user.globalName,
             // autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
         });
-        const thisThread = await pool.threads.cache.find((x: { name: string; }) => x.name === leftPlayer.user.globalName + " vs " + rightPlayer.user.globalName)!;
+        const thisThread = pool.threads.cache.find((x: {
+            name: string;
+        }) => x.name === leftPlayer.user.globalName + " vs " + rightPlayer.user.globalName)!;
         await thisThread.send(`${leftPlayer} vs ${rightPlayer}\n\n` +
             `Please schedule in this thread. Your pool moderator is ${moderator}.\n` +
             `(NEW - MANDATORY) - tag the Tour Spectator role with your game link in the #live-matches channel. \n` +
@@ -117,7 +119,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
         );
         console.log(leftPlayer + " vs " + rightPlayer);
     }
-    pool.send(`${poolRole}\n\n` + finalPoolMessage + `- The round ends ${deadline}. All games must be played by then.`)
+    await pool.send(`${poolRole}\n\n` + finalPoolMessage + `- The round ends ${deadline}. All games must be played by then.`)
     await interaction.followUp(buf + `Pairings submitted in ${pool}.`);
 
     async function processMissingPlayer(id: string, int: number) {

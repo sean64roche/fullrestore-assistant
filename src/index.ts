@@ -1,20 +1,26 @@
 // Require the necessary discord.js classes
-import {Client, Events, GatewayIntentBits} from 'discord.js';
+import {Client, Collection, Events, GatewayIntentBits} from 'discord.js';
 import { setGlobals } from './globals.js';
 import ALL_COMMANDS from './commands/allcommands.js';
 import * as dotenv from "dotenv";
 
+declare module 'discord.js' {
+    export interface Client {
+        commands: Collection<string, any>;
+    }
+}
+
 dotenv.config();
 
 // Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds], allowedMentions: { parse: ['users', 'roles'] } });
+const client = new Client({ intents: [GatewayIntentBits.Guilds], allowedMentions: { parse: ['users', 'roles'], repliedUser: true } });
+client.commands = new Collection();
 
 console.log(ALL_COMMANDS);
 
 for (const command of ALL_COMMANDS) {
 	// Set a new item in the Collection with the key as the command name and the value as the exported module
 	if ('data' in command && 'execute' in command) {
-        //@ts-ignore
 		client.commands.set(command.data.name, command);
 	}
 }
@@ -25,7 +31,6 @@ client.on(Events.InteractionCreate, interaction => {
 
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isChatInputCommand()) return;
-    //@ts-ignore
 	const command = interaction.client.commands.get(interaction.commandName);
 
 	if (!command) {
