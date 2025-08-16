@@ -40,6 +40,11 @@ export const TOURNAMENT_COMMAND = {
                     .setDescription('Channel where players will sign-up as an entrant')
                     .setRequired(true)
             )
+            .addRoleOption(option =>
+                option.setName('player_role')
+                .setDescription('Assigned player role for entrants. If this doesn\'t exist, create one')
+                .setRequired(true)
+            )
             .addChannelOption(option =>
                 option.setName('signup-channel')
                 .setDescription('Channel where players will sign-up as an entrant')
@@ -79,6 +84,7 @@ export const TOURNAMENT_COMMAND = {
                     const adminChannel = interaction.options.getChannel('admin-channel');
                     const signupChannel = interaction.options.getChannel('signup-channel');
                     const resultChannel = interaction.options.getChannel('result-channel');
+                    const playerRole = interaction.options.getRole('player_role');
                     await interaction.reply(`Tournament created!
                     Name: ${newTournament.name}
                     Format: ${newTournament.format}
@@ -90,7 +96,8 @@ export const TOURNAMENT_COMMAND = {
                     Signup finish date: ${newTournament.signupFinishDate}
                     Admin channel: ${adminChannel}
                     Signup channel: ${signupChannel}
-                    Results channel: ${resultChannel}`);
+                    Results channel: ${resultChannel}
+                    Player role: ${playerRole}`);
                     if (!!newTournament.info) {
                         await interaction.followUp(`Info:\n\n${newTournament.info}`);
                     }
@@ -118,6 +125,7 @@ async function createTournament(interaction: ChatInputCommandInteraction) {
         admin_snowflake: interaction.options.getChannel('admin-channel')?.id,
         signup_snowflake: interaction.options.getChannel('signup-channel')?.id,
         result_snowflake: interaction.options.getChannel('result-channel')?.id,
+        role_snowflake: interaction.options.getRole('player_role')?.id,
     };
     try {
         return await tournamentRepo.create(tournament);

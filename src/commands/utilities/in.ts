@@ -1,4 +1,11 @@
-import {ChatInputCommandInteraction, SlashCommandBuilder, MessageFlags, TextChannel} from "discord.js";
+import {
+    ChatInputCommandInteraction,
+    SlashCommandBuilder,
+    MessageFlags,
+    TextChannel,
+    GuildMember,
+    Snowflake
+} from "discord.js";
 import {
     PlayerDto,
     PlayerEntity,
@@ -6,7 +13,7 @@ import {
     transformTournamentResponse
 } from "@fullrestore/service";
 import {apiConfig, playerRepo} from "../../repositories.js";
-import axios, {AxiosError} from "axios";
+import axios, {AxiosError, AxiosResponse} from "axios";
 import {channels} from "../../globals.js";
 
 export const IN_COMMAND = {
@@ -20,27 +27,29 @@ export const IN_COMMAND = {
         ),
     async execute(interaction: ChatInputCommandInteraction) {
         try {
-            await createEntrantPlayer(interaction);
+            const tournamentResponse = await findTournamentBySignupSnowflake(interaction);
+            if (!tournamentResponse) {
+                await interaction.reply({
+                    content: "No tournament found in this channel.",
+                    flags: MessageFlags.Ephemeral,
+                });
+                return;
+            }
+            await createEntrantPlayer(interaction, tournamentResponse);
+            await (interaction.member as GuildMember).roles.add(tournamentResponse.role_snowflake as Snowflake);
+            await interaction.reply(`${interaction.user} has signed up: Showdown username '${interaction.options.getString('ps_username')}'`);
         } catch (error) {
             throw error;
         }
     }
 };
 
-async function createEntrantPlayer(interaction: ChatInputCommandInteraction) {
-    const tournamentResponse = await findTournamentFromChannelId(interaction);
-    if (!tournamentResponse) {
-        await interaction.reply({
-            content: "No tournament found in this channel.",
-            flags: MessageFlags.Ephemeral,
-        });
-        return;
-    }
+async function createEntrantPlayer(interaction: ChatInputCommandInteraction, tournamentResponse: TournamentResponse) {
+
     const tournament = transformTournamentResponse(tournamentResponse);
     const player: PlayerEntity = await initPlayer(interaction, tournament);
     try {
         await playerRepo.createEntrantPlayer(player, tournament);
-        await interaction.reply(`${interaction.user} has signed up with PS user '${interaction.options.getString('ps_username')}'.`);
     } catch (error) {
         switch (error.status) {
             case 409:
@@ -97,16 +106,60 @@ async function initPlayer(interaction: ChatInputCommandInteraction, tournament: 
 }
 
 async function findExistingPlayer(interaction: ChatInputCommandInteraction, player: PlayerDto, adminChannel: TextChannel): Promise<PlayerEntity> {
+    let existingPsUser: AxiosResponse | undefined;
     try {
-        const existingPlayer = await axios.get(apiConfig.baseUrl + apiConfig.playersEndpoint + `?discord_user=${player.discord_user}`);
-        return existingPlayer.data;
+        existingPsUser = await axios.get(
+            apiConfig.baseUrl + apiConfig.playersEndpoint + `?ps_user=${player.ps_user}`
+        );
+    } catch (error) {}
+    try {
+        const existingPlayer = await axios.get(
+            apiConfig.baseUrl + apiConfig.playersEndpoint + `?discord_user=${player.discord_user}`
+        );
+        if (existingPsUser &&
+            existingPsUser.data &&
+            existingPsUser.data.discord_user &&
+            (existingPlayer.data.discord_user !== existingPsUser.data.discord_user)
+        ) {
+            throw new Error(
+                `Error on findExistingPlayer: ${interaction.user} is attempting to register with a taken Showdown account.
+                PS user: ${player.ps_user}
+                Discord account this belongs to: ${existingPsUser.data.discord_user}`
+            );
+        }
+        if (!existingPlayer.data.discord_id) {
+            await axios.put(
+                apiConfig.baseUrl + apiConfig.playersEndpoint + '/' + existingPlayer.data.id, {
+                    ps_user: existingPlayer.data.ps_user,
+                    discord_user: interaction.user.username,
+                    discord_id: interaction.user.id,
+                }
+            );
+        }
+        return {
+            ...existingPlayer.data,
+            discord_id: interaction.user.id,
+        };
     } catch (error) {
         if (error instanceof AxiosError) {
             switch (error.response?.status) {
                 case 404:
                     try {
-                        const existingPlayer = await axios.get(apiConfig.baseUrl + apiConfig.playersEndpoint + `?ps_user=${player.ps_user}`);
-                        return existingPlayer.data;
+                        const existingPlayer = await axios.get(
+                            apiConfig.baseUrl + apiConfig.playersEndpoint + `?ps_user=${player.ps_user}`
+                        );
+                        await axios.put(
+                            apiConfig.baseUrl + apiConfig.playersEndpoint + '/' + existingPlayer.data.id, {
+                                ps_user: existingPlayer.data.ps_user,
+                                discord_user: interaction.user.username,
+                                discord_id: interaction.user.id,
+                            }
+                        );
+                        return {
+                            ...existingPlayer.data,
+                            discord_user: interaction.user.username,
+                            discord_id: interaction.user.id,
+                        };
                     } catch (error) {
                         await produceError(
                             interaction,
@@ -128,7 +181,8 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
         await produceError(
             interaction,
             adminChannel,
-            `Error on findExistingPlayer: ${interaction.user} signup failed`
+            `Error on findExistingPlayer: ${interaction.user} signup failed
+            Message: ${error.message}`
         );
         throw error;
     }
@@ -150,7 +204,7 @@ async function produceError(
     );
 }
 
-export async function findTournamentFromChannelId(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
+export async function findTournamentBySignupSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
     try {
         const tournament = await axios.get(apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?signup_snowflake=${interaction.channel?.id}`);
         return tournament.data[0];
