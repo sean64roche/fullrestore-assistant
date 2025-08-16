@@ -1,7 +1,4 @@
-import { REST, Routes } from 'discord.js';
-import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { setGlobals } from './globals.js';
+import { REST, Routes, RESTPostAPIApplicationCommandsJSONBody } from 'discord.js';
 import ALL_COMMANDS from './commands/allcommands.js';
 
 const commands = [];
@@ -21,10 +18,10 @@ const rest = new REST().setToken(process.env.TOKEN as string);
 		console.log(`Started refreshing ${commands.length} application (/) commands.`);
 
 		// The put method is used to fully refresh all commands in the guild with the current set
-		const data: unknown[] = await rest.put(
+		const data = await rest.put(
 			Routes.applicationGuildCommands(process.env.CLIENT_ID as string, process.env.GUILD_ID as string),
 			{ body: commands },
-		);
+		) as RESTPostAPIApplicationCommandsJSONBody[];
 		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
 	} catch (error) {
 		// And of course, make sure you catch and log any errors!
