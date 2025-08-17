@@ -197,7 +197,8 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
 }
 
 async function createNewAlias(signupPlayer: PlayerDto, existingPlayer: PlayerResponse) {
-    if (existingPlayer.ps_user !== cleanPsUsername(signupPlayer.ps_user)) {
+    const existingAlias = await playerRepo.findPlayer(signupPlayer.ps_user);
+    if (!existingAlias && existingPlayer.ps_user !== cleanPsUsername(signupPlayer.ps_user)) {
         await playerRepo.createPlayerAlias(transformPlayerResponse(existingPlayer), signupPlayer.ps_user);
     }
 }
