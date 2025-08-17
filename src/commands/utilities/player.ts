@@ -7,7 +7,6 @@ import {
 import {
     EntrantPlayerResponse,
     PlayerDto,
-    TournamentResponse,
     transformEntrantPlayerResponse
 } from "@fullrestore/service";
 import {createEntrantPlayer, findTournamentByAdminSnowflake, findTournamentBySignupSnowflake} from "./in.js";
