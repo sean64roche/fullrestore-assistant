@@ -1,4 +1,4 @@
-import {ChatInputCommandInteraction, SlashCommandBuilder, } from "discord.js";
+import {ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder,} from "discord.js";
 import { tournamentRepo } from "../../repositories.js";
 import { TournamentDto } from "@fullrestore/service";
 
@@ -6,6 +6,7 @@ export const TOURNAMENT_COMMAND = {
     data: new SlashCommandBuilder()
     .setName('tournament')
     .setDescription('Commands for interacting with tournament data.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addSubcommand(subcommand =>
         subcommand
             .setName('init')

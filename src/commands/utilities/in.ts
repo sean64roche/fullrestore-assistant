@@ -59,6 +59,7 @@ export async function createEntrantPlayer(interaction: ChatInputCommandInteracti
     const playerEntity: PlayerEntity = await initPlayer(interaction, player, tournament);
     try {
         await playerRepo.createEntrantPlayer(playerEntity, tournament);
+        return;
     } catch (error) {
         switch (error.status) {
             case 409:
@@ -223,6 +224,21 @@ export async function findTournamentBySignupSnowflake(interaction: ChatInputComm
     try {
         const tournament = await axios.get(
             apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?signup_snowflake=${interaction.channel?.id}`
+        );
+        return tournament.data[0];
+    } catch (error) {
+        await interaction.reply({
+            content: "No tournament found in this channel.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+}
+
+export async function findTournamentByAdminSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
+    try {
+        const tournament = await axios.get(
+            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?admin_snowflake=${interaction.channel?.id}`
         );
         return tournament.data[0];
     } catch (error) {

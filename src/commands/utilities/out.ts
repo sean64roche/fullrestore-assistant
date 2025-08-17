@@ -6,7 +6,7 @@ import {findTournamentBySignupSnowflake} from "./in.js";
 import {TournamentResponse} from "@fullrestore/service";
 import {revivalGuild} from "../../globals.js";
 
-type DiscordPlayer = {
+export type DiscordPlayer = {
     discordUser: string;
     discordId: string;
 }
@@ -31,7 +31,7 @@ export const OUT_COMMAND = {
                 discordId: interaction.user.id,
             }
             await removeEntrantPlayer(interaction, player, tournament);
-
+            await interaction.reply(`Sign-up ${await revivalGuild.members.fetch(player.discordId)} removed.`);
         } catch (error) {
             throw error;
         }
@@ -52,7 +52,6 @@ export async function removeEntrantPlayer(interaction: ChatInputCommandInteracti
             });
         }
         await axios.delete(apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `?player_id=${player.data.id}&tournament_slug=${tournament.slug}`);
-        await interaction.reply(`Sign-up ${await revivalGuild.members.fetch(discordPlayer.discordId)} removed.`);
     } catch (error) {
         if (error.response && error.response.status === 404) {
             await interaction.reply({

@@ -1,10 +1,11 @@
-import {ChannelType, ChatInputCommandInteraction, SlashCommandBuilder, TextChannel, time} from 'discord.js';
+import {ChannelType, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, TextChannel, time} from 'discord.js';
 import { revivalGuild } from '../../globals.js'
 
 export const ROUND_COMMAND = {
     data: new SlashCommandBuilder()
     .setName('round')
     .setDescription('Commands for handling pools.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
     .addSubcommand(subcommand =>
         subcommand
             .setName('pair')
@@ -44,6 +45,7 @@ export const ROUND_COMMAND = {
                 option.setName('header')
                 .setDescription('Optional header message for any freeform text to be sent before threads are posted')
             ),
+
     )
     .addSubcommand(subcommand =>
         subcommand
