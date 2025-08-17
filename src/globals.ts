@@ -1,7 +1,7 @@
-import {Client, Snowflake} from "discord.js";
+import {ChannelManager, Client, Snowflake} from "discord.js";
 import 'dotenv/config';
 
-export let channels: any;
+export let channels: ChannelManager;
 export let revivalGuild: { members: { fetch: (arg0: string) => any; }; };
 
 export async function setGlobals(client: Client) {
