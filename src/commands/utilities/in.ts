@@ -77,7 +77,9 @@ async function initPlayer(interaction: ChatInputCommandInteraction, tournament: 
         discord_id: interaction.user.id,
     }
     try {
-        const playerResponse = await axios.post(apiConfig.baseUrl + apiConfig.playersEndpoint, player);
+        const playerResponse = await axios.post(
+            apiConfig.baseUrl + apiConfig.playersEndpoint, player
+        );
         return playerResponse.data;
     } catch (error) {
         const adminChannel = await channels.fetch(tournament.adminSnowflake) as TextChannel;
@@ -206,7 +208,9 @@ async function produceError(
 
 export async function findTournamentBySignupSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
     try {
-        const tournament = await axios.get(apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?signup_snowflake=${interaction.channel?.id}`);
+        const tournament = await axios.get(
+            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?signup_snowflake=${interaction.channel?.id}`
+        );
         return tournament.data[0];
     } catch (error) {
         await interaction.reply({
