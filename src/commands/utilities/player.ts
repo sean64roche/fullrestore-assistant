@@ -106,8 +106,7 @@ export const PLAYER_COMMAND = {
             }
             try {
                 const entrants: AxiosResponse = await axios.get(
-                    // apiConfig.baseUrl + apiConfig.tournamentsEndpoint + '/' + tournamentResponse.slug + '/entrants'
-                apiConfig.baseUrl + apiConfig.tournamentsEndpoint + '/' + 'adv-revival-2024:-swiss-stage' + '/entrants'
+                    apiConfig.baseUrl + apiConfig.tournamentsEndpoint + '/' + tournamentResponse.slug + '/entrants'
                 );
                 await interaction.reply(`Total entrants: ${entrants.data.length.toString()}`);
                 await listTournamentEntrants(tournamentResponse, entrants.data, interaction);
