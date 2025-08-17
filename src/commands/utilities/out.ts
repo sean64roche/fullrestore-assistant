@@ -4,6 +4,12 @@ import {apiConfig} from "../../repositories.js";
 import axios from "axios";
 import {findTournamentBySignupSnowflake} from "./in.js";
 import {TournamentResponse} from "@fullrestore/service";
+import {revivalGuild} from "../../globals.js";
+
+type DiscordPlayer = {
+    discordUser: string;
+    discordId: string;
+}
 
 export const OUT_COMMAND = {
     data: new SlashCommandBuilder()
@@ -20,20 +26,24 @@ export const OUT_COMMAND = {
                 return;
             }
             await (interaction.member as GuildMember).roles.remove(tournament.role_snowflake as Snowflake);
-            await removeEntrantPlayer(interaction, tournament);
+            const player: DiscordPlayer = {
+                discordUser: interaction.user.username,
+                discordId: interaction.user.id,
+            }
+            await removeEntrantPlayer(interaction, player, tournament);
 
         } catch (error) {
             throw error;
         }
     }
 };
-async function removeEntrantPlayer(interaction: ChatInputCommandInteraction, tournament: TournamentResponse) {
+export async function removeEntrantPlayer(interaction: ChatInputCommandInteraction, discordPlayer: DiscordPlayer, tournament: TournamentResponse) {
     try {
         const player = await axios.get(
-            apiConfig.baseUrl + apiConfig.playersEndpoint + `?discord_id=${interaction.user.id}`
+            apiConfig.baseUrl + apiConfig.playersEndpoint + `?discord_id=${discordPlayer.discordId}`
         );
         const pairings = await axios.get(
-            apiConfig.baseUrl + apiConfig.pairingsEndpoint + `?discord_user=${interaction.user.username}&tournament_slug=${tournament.slug}`
+            apiConfig.baseUrl + apiConfig.pairingsEndpoint + `?discord_user=${discordPlayer.discordUser}&tournament_slug=${tournament.slug}`
         );
         if (pairings.data.length > 0) {
             await interaction.reply({
@@ -42,7 +52,7 @@ async function removeEntrantPlayer(interaction: ChatInputCommandInteraction, tou
             });
         }
         await axios.delete(apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `?player_id=${player.data.id}&tournament_slug=${tournament.slug}`);
-        await interaction.reply(`Sign-up ${interaction.user.username} removed.`);
+        await interaction.reply(`Sign-up ${await revivalGuild.members.fetch(discordPlayer.discordId)} removed.`);
     } catch (error) {
         if (error.response && error.response.status === 404) {
             await interaction.reply({

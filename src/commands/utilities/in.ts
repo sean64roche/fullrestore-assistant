@@ -15,7 +15,7 @@ import {
 } from "@fullrestore/service";
 import {apiConfig, playerRepo} from "../../repositories.js";
 import axios, {AxiosError, AxiosResponse} from "axios";
-import {channels} from "../../globals.js";
+import {channels, revivalGuild} from "../../globals.js";
 
 export const IN_COMMAND = {
     data: new SlashCommandBuilder()
@@ -36,7 +36,12 @@ export const IN_COMMAND = {
                 });
                 return;
             }
-            await createEntrantPlayer(interaction, tournamentResponse);
+            const player: PlayerDto = {
+                ps_user: interaction.options.getString('ps_username')!,
+                discord_user: interaction.user.username,
+                discord_id: interaction.user.id,
+            }
+            await createEntrantPlayer(interaction, player, tournamentResponse);
             await interaction.reply(`${interaction.user} has signed up: Showdown username '${interaction.options.getString('ps_username')}'`);
             await (interaction.member as GuildMember).roles.add(tournamentResponse.role_snowflake as Snowflake);
         } catch (error) {
@@ -48,12 +53,12 @@ export const IN_COMMAND = {
     }
 };
 
-async function createEntrantPlayer(interaction: ChatInputCommandInteraction, tournamentResponse: TournamentResponse) {
+export async function createEntrantPlayer(interaction: ChatInputCommandInteraction, player: PlayerDto, tournamentResponse: TournamentResponse) {
 
     const tournament = transformTournamentResponse(tournamentResponse);
-    const player: PlayerEntity = await initPlayer(interaction, tournament);
+    const playerEntity: PlayerEntity = await initPlayer(interaction, player, tournament);
     try {
-        await playerRepo.createEntrantPlayer(player, tournament);
+        await playerRepo.createEntrantPlayer(playerEntity, tournament);
     } catch (error) {
         switch (error.status) {
             case 409:
@@ -74,12 +79,7 @@ async function createEntrantPlayer(interaction: ChatInputCommandInteraction, tou
     }
 }
 
-async function initPlayer(interaction: ChatInputCommandInteraction, tournament: TournamentEntity): Promise<PlayerEntity> {
-    const player: PlayerDto = {
-        ps_user: interaction.options.getString('ps_username')!,
-        discord_user: interaction.user.username,
-        discord_id: interaction.user.id,
-    }
+async function initPlayer(interaction: ChatInputCommandInteraction, player: PlayerDto, tournament: TournamentEntity): Promise<PlayerEntity> {
     try {
         const playerResponse = await axios.post(
             apiConfig.baseUrl + apiConfig.playersEndpoint, player
@@ -103,7 +103,7 @@ async function initPlayer(interaction: ChatInputCommandInteraction, tournament: 
             await produceError(
                 interaction,
                 adminChannel,
-                `Unknown error on initPlayer: ${interaction.user} signup failed.
+                `Unknown error on initPlayer: ${await revivalGuild.members.fetch(player.discord_id!)} signup failed.
                 Message: ${JSON.stringify(error.message)}`
             );
             throw error;
@@ -128,7 +128,7 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
             (existingPlayer.data.discord_user !== existingPsUser.data.discord_user)
         ) {
             throw new Error(
-                `Error on findExistingPlayer: ${interaction.user} is attempting to register with a taken Showdown account.
+                `Error on findExistingPlayer: ${await revivalGuild.members.fetch(player.discord_id!)} is attempting to register with a taken Showdown account.
                 PS user: ${player.ps_user}
                 Discord account this belongs to: ${existingPsUser.data.discord_user}`
             );
@@ -137,15 +137,15 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
             await axios.put(
                 apiConfig.baseUrl + apiConfig.playersEndpoint + '/' + existingPlayer.data.id, {
                     ps_user: existingPlayer.data.ps_user,
-                    discord_user: interaction.user.username,
-                    discord_id: interaction.user.id,
+                    discord_user: player.discord_user,
+                    discord_id: player.discord_id,
                 }
             );
         }
         await createNewAlias(player, existingPlayer.data);
         return {
             ...existingPlayer.data,
-            discord_id: interaction.user.id,
+            discord_id: player.discord_id,
         };
     } catch (error) {
         if (error instanceof AxiosError) {
@@ -158,21 +158,21 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
                         await axios.put(
                             apiConfig.baseUrl + apiConfig.playersEndpoint + '/' + existingPlayer.data.id, {
                                 ps_user: existingPlayer.data.ps_user,
-                                discord_user: interaction.user.username,
-                                discord_id: interaction.user.id,
+                                discord_user: player.discord_user,
+                                discord_id: player.discord_id,
                             }
                         );
                         await createNewAlias(player, existingPlayer.data);
                         return {
                             ...existingPlayer.data,
-                            discord_user: interaction.user.username,
-                            discord_id: interaction.user.id,
+                            discord_user: player.discord_user,
+                            discord_id: player.discord_id,
                         };
                     } catch (error) {
                         await produceError(
                             interaction,
                             adminChannel,
-                            `Error on findExistingPlayer: ${interaction.user} duplicate detected but not found.`
+                            `Error on findExistingPlayer: ${await revivalGuild.members.fetch(player.discord_id!)} duplicate detected but not found.`
                         );
                         throw error;
                     }
@@ -180,7 +180,7 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
                     await produceError(
                         interaction,
                         adminChannel,
-                        `Error on findExistingPlayer: ${interaction.user}
+                        `Error on findExistingPlayer: ${await revivalGuild.members.fetch(player.discord_id!)}
                         Message: ${JSON.stringify(error.message)}`
                     );
                     throw error;
@@ -189,7 +189,7 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
         await produceError(
             interaction,
             adminChannel,
-            `Error on findExistingPlayer: ${interaction.user} signup failed
+            `Error on findExistingPlayer: ${await revivalGuild.members.fetch(player.discord_id!)} signup failed
             Message: ${error.message}`
         );
         throw error;
