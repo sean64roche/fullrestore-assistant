@@ -7,9 +7,10 @@ import {
     Snowflake
 } from "discord.js";
 import {
+    cleanPsUsername,
     PlayerDto,
-    PlayerEntity,
-    TournamentEntity, TournamentResponse,
+    PlayerEntity, PlayerResponse,
+    TournamentEntity, TournamentResponse, transformPlayerResponse,
     transformTournamentResponse
 } from "@fullrestore/service";
 import {apiConfig, playerRepo} from "../../repositories.js";
@@ -36,9 +37,12 @@ export const IN_COMMAND = {
                 return;
             }
             await createEntrantPlayer(interaction, tournamentResponse);
-            await (interaction.member as GuildMember).roles.add(tournamentResponse.role_snowflake as Snowflake);
             await interaction.reply(`${interaction.user} has signed up: Showdown username '${interaction.options.getString('ps_username')}'`);
+            await (interaction.member as GuildMember).roles.add(tournamentResponse.role_snowflake as Snowflake);
         } catch (error) {
+            if (error.status === 409) {
+                return;
+            }
             throw error;
         }
     }
@@ -57,7 +61,7 @@ async function createEntrantPlayer(interaction: ChatInputCommandInteraction, tou
                     content: "You're already signed up for this tournament!",
                     flags: MessageFlags.Ephemeral,
                 });
-                break;
+                throw error;
             default:
                 await produceError(
                     interaction,
@@ -111,7 +115,7 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
     let existingPsUser: AxiosResponse | undefined;
     try {
         existingPsUser = await axios.get(
-            apiConfig.baseUrl + apiConfig.playersEndpoint + `?ps_user=${player.ps_user}`
+            apiConfig.baseUrl + apiConfig.playersEndpoint + `?player=${player.ps_user}`
         );
     } catch (error) {}
     try {
@@ -138,6 +142,7 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
                 }
             );
         }
+        await createNewAlias(player, existingPlayer.data);
         return {
             ...existingPlayer.data,
             discord_id: interaction.user.id,
@@ -157,6 +162,7 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
                                 discord_id: interaction.user.id,
                             }
                         );
+                        await createNewAlias(player, existingPlayer.data);
                         return {
                             ...existingPlayer.data,
                             discord_user: interaction.user.username,
@@ -187,6 +193,12 @@ async function findExistingPlayer(interaction: ChatInputCommandInteraction, play
             Message: ${error.message}`
         );
         throw error;
+    }
+}
+
+async function createNewAlias(signupPlayer: PlayerDto, existingPlayer: PlayerResponse) {
+    if (existingPlayer.ps_user !== cleanPsUsername(signupPlayer.ps_user)) {
+        await playerRepo.createPlayerAlias(transformPlayerResponse(existingPlayer), signupPlayer.ps_user);
     }
 }
 
