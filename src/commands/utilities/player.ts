@@ -109,7 +109,7 @@ export const PLAYER_COMMAND = {
                     apiConfig.baseUrl + apiConfig.tournamentsEndpoint + '/' + tournamentResponse.slug + '/entrants'
                 );
                 await interaction.reply(`Total entrants: ${entrants.data.length.toString()}`);
-                await listTournamentEntrants(tournamentResponse, entrants.data, interaction);
+                await listTournamentEntrants(entrants.data, interaction);
             } catch (error) {
                 await interaction.reply(
                     `Error on fetching entrants: 
@@ -121,7 +121,6 @@ export const PLAYER_COMMAND = {
 }
 
 async function listTournamentEntrants(
-    tournament: TournamentResponse,
     entrants: EntrantPlayerResponse[],
     interaction: ChatInputCommandInteraction
 ) {
