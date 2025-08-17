@@ -2,7 +2,7 @@ import {
     ChatInputCommandInteraction,
     GuildMember,
     MessageFlags, PermissionFlagsBits,
-    SlashCommandBuilder, Snowflake, TextChannel
+    SlashCommandBuilder, Snowflake, TextChannel, userMention
 } from "discord.js";
 import {
     EntrantPlayerResponse,
@@ -11,7 +11,7 @@ import {
     transformEntrantPlayerResponse
 } from "@fullrestore/service";
 import {createEntrantPlayer, findTournamentByAdminSnowflake, findTournamentBySignupSnowflake} from "./in.js";
-import {channels, revivalGuild} from "../../globals.js";
+import {channels} from "../../globals.js";
 import {DiscordPlayer, removeEntrantPlayer} from "./out.js";
 import {apiConfig} from "../../repositories.js";
 import axios, {AxiosResponse} from "axios";
@@ -93,7 +93,7 @@ export const PLAYER_COMMAND = {
                 await (playerMember as GuildMember).roles.remove(tournamentResponse.role_snowflake as Snowflake);
             } catch {
             }
-            await interaction.reply(`Sign-up ${await revivalGuild.members.fetch(discordPlayer.discordId)} removed.`);
+            await interaction.reply(`Sign-up ${userMention(discordPlayer.discordId)} removed.`);
             return;
         } else if (subcommand === 'list') {
             tournamentResponse = await findTournamentByAdminSnowflake(interaction);
@@ -134,12 +134,15 @@ async function listTournamentEntrants(
             for (const entrant of entrantsToSend) {
                 const entrantEntity = transformEntrantPlayerResponse(entrant);
                 if (!!entrantEntity.player.discordId) {
-                    buf += (`${await revivalGuild.members.fetch(entrantEntity.player.discordId)}\n`);
+                    buf += (`${userMention(entrantEntity.player.discordId)}\n`);
                 } else {
                     buf += (entrantEntity.player.psUser + '\n');
                 }
             }
-            await botChannel.send(buf);
+            await botChannel.send({
+                content: buf,
+                allowedMentions: { parse: [] },
+            });
             i += 100;
         } catch (error) {
             await interaction.followUp(
