@@ -14,8 +14,7 @@ COPY tsconfig.json ./
 RUN echo "@fullrestore:registry=https://${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/" > .npmrc && \
     echo "//${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/:_authToken=${NPM_TOKEN}" >> .npmrc
 
-RUN npm ci
-
+RUN npm install
 
 RUN npm config delete //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken
 RUN rm -f .npmrc
