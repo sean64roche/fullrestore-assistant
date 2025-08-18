@@ -6,10 +6,10 @@ ARG CI_SERVER_HOST=gitlab.com
 
 WORKDIR /app/
 
-
 COPY package.json ./
 COPY package-lock.json ./
 COPY tsconfig.json ./
+COPY .env ./
 COPY src ./src
 
 RUN echo "@fullrestore:registry=https://${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/" > .npmrc && \
