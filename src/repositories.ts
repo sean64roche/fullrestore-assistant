@@ -10,12 +10,12 @@ import {
 } from "@fullrestore/service";
 
 dotenv.config();
-axios.defaults.baseURL = process.env.API_URL || "http://localhost:3000";
+axios.defaults.baseURL = process.env.API_BASEURL || "http://localhost:3000";
 axios.defaults.headers.common["Authorization"] = `Bearer ${process.env.API_TOKEN}`;
 axios.defaults.headers.common["x-api-key"] = process.env.API_KEY as string;
 
 export const apiConfig: ApiConfig = createConfig({
-  baseUrl: axios.defaults.baseURL!,
+  baseUrl: axios.defaults.baseURL,
   apiKey: process.env.API_KEY,
   formatsEndpoint: process.env.API_FORMATS_ENDPOINT,
   playersEndpoint: process.env.API_PLAYERS_ENDPOINT,
