@@ -23,6 +23,21 @@ docker-build:
   # All branches are tagged with $DOCKER_IMAGE_NAME (defaults to commit ref slug)
   # Default branch is also tagged with `latest`
   script:
+    - echo "TOKEN=$TOKEN" > .env
+    - echo "CLIENT_ID=$CLIENT_ID" >> .env
+    - echo "GUILD_ID=$GUILD_ID" >> .env
+    - echo "BOT_STUFF=$BOT_STUFF" >> .env
+    - echo "API_BASEURL=$API_BASEURL" >> .env
+    - echo "API_FORMATS_ENDPOINT=$API_FORMATS_ENDPOINT" >> .env
+    - echo "API_PLAYERS_ENDPOINT=$API_PLAYERS_ENDPOINT" >> .env
+    - echo "API_PLAYER_ALIASES_ENDPOINT=$API_PLAYER_ALIASES_ENDPOINT" >> .env
+    - echo "API_TOURNAMENTS_ENDPOINT=$API_TOURNAMENTS_ENDPOINT" >> .env
+    - echo "API_ROUNDS_ENDPOINT=$API_ROUNDS_ENDPOINT" >> .env
+    - echo "API_ROUND_BYES_ENDPOINT=$API_ROUND_BYES_ENDPOINT" >> .env
+    - echo "API_ENTRANT_PLAYERS_ENDPOINT=$API_ENTRANT_PLAYERS_ENDPOINT" >> .env
+    - echo "API_PAIRINGS_ENDPOINT=$API_PAIRINGS_ENDPOINT" >> .env
+    - echo "API_REPLAYS_ENDPOINT=$API_REPLAYS_ENDPOINT" >> .env
+    - echo "API_KEY=$API_KEY" >> .env
     - |
       docker build --pull \
         --build-arg NPM_TOKEN="${CI_JOB_TOKEN}" \
