@@ -9,11 +9,6 @@ WORKDIR /
 RUN npm config set -- //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken="${NPM_TOKEN}"
 RUN echo "@fullrestore:registry=https://${CI_SERVER_HOST}/api/v4/projects/69690868/packages/npm/" > .npmrc
 
-RUN --mount=type=bind,source=package.json,target=package.json \
-    --mount=type=bind,source=package-lock.json,target=package-lock.json \
-    --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
-
 WORKDIR /app/
 
 COPY package.json ./
@@ -21,13 +16,13 @@ COPY package-lock.json ./
 COPY tsconfig.json ./
 COPY src ./src
 
-RUN npm install
+RUN npm ci
 
 RUN npm config delete //gitlab.com/api/v4/projects/69690868/packages/npm/:_authToken
 RUN rm -f .npmrc
 
 WORKDIR /app/src/
 
-RUN ["node", "deploy-commands.js"]
+CMD ["npx", "tsx", "src/deploy-commands.ts"]
 
-CMD ["node", "index.js"]
+CMD ["npx", "tsx", "src/index.ts"]
