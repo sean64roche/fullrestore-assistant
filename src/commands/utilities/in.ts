@@ -71,7 +71,7 @@ export async function createEntrantPlayer(interaction: ChatInputCommandInteracti
             default:
                 await produceError(
                     interaction,
-                    await channels.fetch(tournament.adminSnowflake) as TextChannel,
+                    await channels.fetch(tournament.adminSnowflake as Snowflake) as TextChannel,
                     `Unknown error on createEntrantPlayer: ${interaction.user} signup failed.
                     Message: ${error.message}`
                 );
@@ -87,7 +87,7 @@ async function initPlayer(interaction: ChatInputCommandInteraction, player: Play
         );
         return playerResponse.data;
     } catch (error) {
-        const adminChannel = await channels.fetch(tournament.adminSnowflake) as TextChannel;
+        const adminChannel = await channels.fetch(tournament.adminSnowflake as Snowflake) as TextChannel;
         if (error instanceof AxiosError) {
             switch (error.response?.status) {
                 case 409:
