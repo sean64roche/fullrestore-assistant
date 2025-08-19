@@ -125,7 +125,7 @@ async function listTournamentEntrants(
 ) {
     let i = 0;
     while (i < entrants.length) {
-        const entrantsToSend = entrants.slice(i, i + 99);
+        const entrantsToSend = entrants.slice(i, i + 49);
         let buf = '';
         try {
             const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
@@ -141,7 +141,7 @@ async function listTournamentEntrants(
                 content: buf,
                 allowedMentions: { parse: [] },
             });
-            i += 100;
+            i += 50;
         } catch (error) {
             await interaction.followUp(
                 `Error on listing entrants: 
