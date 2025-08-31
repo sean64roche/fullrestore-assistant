@@ -1,5 +1,16 @@
-import {ChannelType, ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder, TextChannel, time} from 'discord.js';
-import { revivalGuild } from '../../globals.js'
+import {
+    ChannelType,
+    ChatInputCommandInteraction,
+    MessageFlags,
+    PermissionFlagsBits,
+    SlashCommandBuilder,
+    TextChannel,
+    time
+} from 'discord.js';
+import {revivalGuild} from '../../globals.js'
+import {RoundEntity, transformTournamentResponse} from "@fullrestore/service";
+import {findTournamentByAdminSnowflake} from "./tournament.js";
+import {roundRepo} from "../../repositories.js";
 
 export const ROUND_COMMAND = {
     data: new SlashCommandBuilder()
@@ -49,16 +60,35 @@ export const ROUND_COMMAND = {
     )
     .addSubcommand(subcommand =>
         subcommand
-            .setName('resetroles')
-            .setDescription('Remove all Pool-related roles from server members.')
+            .setName('init')
+            .setDescription('Creates a new round in the db & on the website.')
+            .addIntegerOption(option =>
+                option.setName('number')
+                    .setDescription('Round number')
+                    .setRequired(true)
+            )
+            .addStringOption(option =>
+                option.setName('deadline')
+                    .setDescription('End date-time of this round. Please enter in YYYY-MM-DD')
+                    .setRequired(false)
+            )
     ),
     async execute(interaction: ChatInputCommandInteraction) {
         switch(interaction.options.getSubcommand()) {
             case 'pair':
                 await pairPlayers(interaction);
                 break;
-            case 'resetroles':
-                // await removePoolRoles(interaction);
+            case 'init':
+                await interaction.reply({
+                    content: "Sending request...",
+                    flags: MessageFlags.Ephemeral,
+                });
+                try {
+                    const newRound = await createRound(interaction);
+                    await interaction.followUp(`Round ${newRound.roundNumber} readied for ${newRound.tournament.name}.`);
+                } catch (error) {
+                    await produceError(interaction, JSON.stringify(error.response?.data));
+                }
                 break;
         }
     }
@@ -87,7 +117,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     console.log(leftPlayersId);
     console.log(rightPlayersId);
     if (!!interaction.options.getString('header')) {
-        pool.send(interaction.options.getString('header')!);
+        await pool.send(interaction.options.getString('header')!);
     }
 
     for (let i = 0; i < leftPlayersId.length; i++) {
@@ -97,14 +127,14 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
         leftPlayer = await revivalGuild.members.fetch(leftPlayersId[i]);
         await leftPlayer.roles.add(poolRole);
         } catch (e) {
-            processMissingPlayer(leftPlayersId[i], (leftPlayersId.length - i));
+            await processMissingPlayer(leftPlayersId[i], (leftPlayersId.length - i));
             continue;
         }
         try {
             rightPlayer = await revivalGuild.members.fetch(rightPlayersId[i]);
             await rightPlayer.roles.add(poolRole);
         } catch (e) {
-            processMissingPlayer(rightPlayersId[i], (rightPlayersId.length - i));
+            await processMissingPlayer(rightPlayersId[i], (rightPlayersId.length - i));
             continue;
         }
         await pool.threads.create({
@@ -127,4 +157,35 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     async function processMissingPlayer(id: string, int: number) {
         buf += `Pairing #${int}: player ${id} not found.\n`;
     }
+
+}
+
+async function createRound(interaction: ChatInputCommandInteraction): Promise<RoundEntity> {
+    try {
+        const tournament = await findTournamentByAdminSnowflake(interaction);
+        if (!tournament) { throw new Error("Tournament not found."); }
+        else {
+            return await roundRepo.create(
+                transformTournamentResponse(tournament),
+                interaction.options.getInteger('number')!,
+                undefined,
+                interaction.options.getString('deadline') ?? undefined,
+            );
+        }
+
+    } catch (error) {
+        await produceError(interaction, JSON.stringify(error.response?.data));
+        throw error;
+    }
+
+}
+
+async function produceError(
+    interaction: ChatInputCommandInteraction,
+    adminMessage: string
+) {
+    await interaction.followUp({
+        content: `There was an error: ${adminMessage}`,
+        flags: MessageFlags.Ephemeral,
+    });
 }
