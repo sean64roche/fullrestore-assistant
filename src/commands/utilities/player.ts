@@ -9,11 +9,12 @@ import {
     PlayerDto,
     transformEntrantPlayerResponse
 } from "@fullrestore/service";
-import {createEntrantPlayer, findTournamentByAdminSnowflake, findTournamentBySignupSnowflake} from "./in.js";
+import {createEntrantPlayer} from "./in.js";
 import {channels} from "../../globals.js";
 import {DiscordPlayer, removeEntrantPlayer} from "./out.js";
 import {apiConfig} from "../../repositories.js";
 import axios, {AxiosResponse} from "axios";
+import {findTournamentByAdminSnowflake, findTournamentBySignupSnowflake} from "./tournament.js";
 
 export const PLAYER_COMMAND = {
     data: new SlashCommandBuilder()
@@ -151,3 +152,7 @@ async function listTournamentEntrants(
         }
     }
 }
+
+// export async function findTournamentByCategorySnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
+//
+// }

@@ -1,6 +1,7 @@
-import {ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder,} from "discord.js";
-import { tournamentRepo } from "../../repositories.js";
-import { TournamentDto } from "@fullrestore/service";
+import {ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, SlashCommandBuilder,} from "discord.js";
+import {apiConfig, tournamentRepo} from "../../repositories.js";
+import {TournamentDto, TournamentResponse} from "@fullrestore/service";
+import axios from "axios";
 
 export const TOURNAMENT_COMMAND = {
     data: new SlashCommandBuilder()
@@ -134,5 +135,35 @@ async function createTournament(interaction: ChatInputCommandInteraction) {
         await interaction.reply(`API Endpoint Error: ${error.message}`);
         await interaction.followUp(`Sent payload: ${JSON.stringify(tournament)}`);
         throw error;
+    }
+}
+
+export async function findTournamentBySignupSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
+    try {
+        const tournament = await axios.get(
+            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?signup_snowflake=${interaction.channel?.id}`
+        );
+        return tournament.data[0];
+    } catch (error) {
+        await interaction.reply({
+            content: "No tournament found in this channel.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+}
+
+export async function findTournamentByAdminSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
+    try {
+        const tournament = await axios.get(
+            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?admin_snowflake=${interaction.channel?.id}`
+        );
+        return tournament.data[0];
+    } catch (error) {
+        await interaction.reply({
+            content: "No tournament found in this channel.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
     }
 }

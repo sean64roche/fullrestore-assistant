@@ -2,7 +2,7 @@ import {ChatInputCommandInteraction, GuildMember, MessageFlags, SlashCommandBuil
 
 import {apiConfig} from "../../repositories.js";
 import axios from "axios";
-import {findTournamentBySignupSnowflake} from "./in.js";
+import {findTournamentBySignupSnowflake} from "./tournament.js";
 import {TournamentResponse} from "@fullrestore/service";
 import {revivalGuild} from "../../globals.js";
 

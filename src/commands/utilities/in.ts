@@ -16,6 +16,7 @@ import {
 import {apiConfig, playerRepo} from "../../repositories.js";
 import axios, {AxiosError, AxiosResponse} from "axios";
 import {channels, revivalGuild} from "../../globals.js";
+import {findTournamentBySignupSnowflake} from "./tournament.js";
 
 export const IN_COMMAND = {
     data: new SlashCommandBuilder()
@@ -220,32 +221,4 @@ async function produceError(
     );
 }
 
-export async function findTournamentBySignupSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
-    try {
-        const tournament = await axios.get(
-            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?signup_snowflake=${interaction.channel?.id}`
-        );
-        return tournament.data[0];
-    } catch (error) {
-        await interaction.reply({
-            content: "No tournament found in this channel.",
-            flags: MessageFlags.Ephemeral,
-        });
-        return;
-    }
-}
 
-export async function findTournamentByAdminSnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
-    try {
-        const tournament = await axios.get(
-            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?admin_snowflake=${interaction.channel?.id}`
-        );
-        return tournament.data[0];
-    } catch (error) {
-        await interaction.reply({
-            content: "No tournament found in this channel.",
-            flags: MessageFlags.Ephemeral,
-        });
-        return;
-    }
-}
