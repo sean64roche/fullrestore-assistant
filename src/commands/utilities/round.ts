@@ -163,7 +163,10 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
 async function createRound(interaction: ChatInputCommandInteraction): Promise<RoundEntity> {
     try {
         const tournament = await findTournamentByAdminSnowflake(interaction);
-        if (!tournament) { throw new Error("Tournament not found."); }
+        if (!tournament) {
+            await produceError(interaction, `No tournament found in this channel.`);
+            throw new Error('No tournament found in this channel.');
+        }
         else {
             return await roundRepo.create(
                 transformTournamentResponse(tournament),
