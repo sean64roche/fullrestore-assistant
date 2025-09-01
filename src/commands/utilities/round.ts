@@ -1,16 +1,18 @@
 import {
+    channelMention,
     ChannelType,
     ChatInputCommandInteraction,
     MessageFlags,
     PermissionFlagsBits,
     SlashCommandBuilder,
     TextChannel,
-    time
+    userMention
 } from 'discord.js';
 import {revivalGuild} from '../../globals.js'
-import {RoundEntity, transformTournamentResponse} from "@fullrestore/service";
+import {PairingDto, RoundEntity, transformTournamentResponse} from "@fullrestore/service";
 import {findTournamentByAdminSnowflake} from "./tournament.js";
-import {roundRepo} from "../../repositories.js";
+import {apiConfig, roundRepo} from "../../repositories.js";
+import axios from "axios";
 
 export const ROUND_COMMAND = {
     data: new SlashCommandBuilder()
@@ -26,6 +28,11 @@ export const ROUND_COMMAND = {
                 .setDescription('Which pool to handle')
                 .setRequired(true)
                 .addChannelTypes(ChannelType.GuildText)
+            )
+            .addIntegerOption(option =>
+            option.setName('round')
+                .setDescription('Round number')
+                .setRequired(true)
             )
             .addRoleOption(option =>
                 option.setName('role')
@@ -96,12 +103,14 @@ export const ROUND_COMMAND = {
 
 const finalPoolMessage =
 "A few details to remember:\n" +
-"- Read #adv-revival-2-tournament-rules even if you're an experienced player. We have banned Ninjask, many items, and confusion/accuracy moves. Be clear on the ruleset!\n" +
+`- Read ${channelMention('1407086933137555618')}, even if you're an experienced player. We have banned Ninjask + Baton Pass, Smeargle + Baton Pass, many items, and confusion/accuracy moves. Be clear on the ruleset!
+` +
 "- Play all games on [Smogtours](https://smogtours.psim.us/), and **upload** your replays.\n" +
-"- You must use the same account name throughout the tournament.\n" +
-"- (NEW - MANDATORY) Post links in #live-matches and tag \'Tour Spectator\'.\n" +
-"- The winner of the set is responsible for posting the replays in the scheduling channel. Please do not post replays in #live-matches. Please tell your pool moderator who the winner is.\n" +
-"- You have until " + (time(new Date(new Date().getTime() + 129600000))) + " your time (36 hours total) to schedule. If you do not schedule before then, you will take an activity loss.\n"
+`- Feel free to post battle links in ${channelMention('1143739235543818341')} and tag 'Tour Spectator'.
+` +
+`- The winner of the set is responsible for posting the replays in your scheduling thread, please do not post replays in the live-matches channel. Remember to tell your pool moderator who the winner is.
+` +
+"- You have until the end of Friday (5 days total) to schedule. If you do not schedule before then, you risk taking an activity loss.\n"
 
 
 async function pairPlayers(interaction: ChatInputCommandInteraction) {
@@ -109,7 +118,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     const pool = interaction.options.getChannel('pool')! as TextChannel;
     const poolRole = interaction.options.getRole('role')!;
     const moderator = interaction.options.getUser('moderator')!;
-    const currentRound = interaction.options.getString('round')!;
+    const currentRound = interaction.options.getInteger('round')!;
     const deadline = interaction.options.getString('deadline')!;
     const leftPlayersId = interaction.options.getString('left')!.split(' ').reverse();
     const rightPlayersId = interaction.options.getString('right')!.split(' ').reverse();
@@ -119,8 +128,16 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     if (!!interaction.options.getString('header')) {
         await pool.send(interaction.options.getString('header')!);
     }
-
+    const tournament = await findTournamentByAdminSnowflake(interaction);
+    if (!tournament) {
+        await interaction.followUp({
+            content: "No tournament found in this channel.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
     for (let i = 0; i < leftPlayersId.length; i++) {
+        let round;
         let leftPlayer;
         let rightPlayer;
         try {
@@ -137,17 +154,45 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
             await processMissingPlayer(rightPlayersId[i], (rightPlayersId.length - i));
             continue;
         }
+        let leftEntrantPlayer, rightEntrantPlayer;
+        try {
+            const roundResponse = await axios.get(
+                apiConfig.baseUrl +  apiConfig.roundsEndpoint + `?tournament_slug=${tournament.slug}&round=${+currentRound}`,
+            );
+            const leftEntrantResponse = await axios.get(
+                apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `?tournament_slug=${tournament.slug}&discord_id=${leftPlayersId[i]}`,
+            );
+            const rightEntrantResponse = await axios.get(
+                apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `?tournament_slug=${tournament.slug}&discord_id=${rightPlayersId[i]}`,
+            );
+            round = roundResponse.data[0];
+            leftEntrantPlayer = leftEntrantResponse.data[0];
+            rightEntrantPlayer = rightEntrantResponse.data[0];
+        } catch (e) {
+            await produceError(interaction, `Bad information on gathering data for pairing: ${leftPlayer} vs. ${rightPlayer}`);
+            continue;
+        }
+        try {
+            const pairingDto: PairingDto = {
+                round_id: round.id,
+                entrant1_id: leftEntrantPlayer.id,
+                entrant2_id: rightEntrantPlayer.id,
+            }
+            await axios.post(apiConfig.baseUrl + apiConfig.pairingsEndpoint, pairingDto);
+        } catch (e) {
+            await produceError(interaction, `Error uploading pairing to db: ${leftPlayer} vs. ${rightPlayer}`);
+            throw e;
+        }
         await pool.threads.create({
-            name: leftPlayer.user.globalName + " vs " + rightPlayer.user.globalName,
+            name: leftPlayer.user.username + " vs. " + rightPlayer.user.username,
             // autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
         });
         const thisThread = pool.threads.cache.find((x: {
             name: string;
-        }) => x.name === leftPlayer.user.globalName + " vs " + rightPlayer.user.globalName)!;
+        }) => x.name === `${leftPlayer.user.username} vs. ${rightPlayer.user.username}`)!;
         await thisThread.send(`${leftPlayer} vs ${rightPlayer}\n\n` +
-            `Please schedule in this thread. Your pool moderator is ${moderator}.\n` +
-            `(NEW - MANDATORY) - tag the Tour Spectator role with your game link in the #live-matches channel. \n` +
-            `The round ends ${deadline}. All games must be played by then. Good luck and have fun!`
+            `Please schedule in this thread. Your pool moderator is ${moderator}, please upload all replays in this thread.\n` +
+            `The round ends ${deadline}, all games must be played by then. Good luck and have fun!`
         );
         console.log(leftPlayer + " vs " + rightPlayer);
     }
@@ -155,9 +200,8 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     await interaction.followUp(buf + `Pairings submitted in ${pool}.`);
 
     async function processMissingPlayer(id: string, int: number) {
-        buf += `Pairing #${int}: player ${id} not found.\n`;
+        buf += `Pairing #${int}: player ${userMention(id)} ${id} not found.\n`;
     }
-
 }
 
 async function createRound(interaction: ChatInputCommandInteraction): Promise<RoundEntity> {
