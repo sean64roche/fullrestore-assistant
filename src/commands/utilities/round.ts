@@ -106,10 +106,11 @@ const finalPoolMessage =
 `- Read ${channelMention('1407086933137555618')}, even if you're an experienced player. We have banned Ninjask + Baton Pass, Smeargle + Baton Pass, many items, and confusion/accuracy moves. Be clear on the ruleset!
 ` +
 "- Play all games on [Smogtours](https://smogtours.psim.us/), and **upload** your replays.\n" +
-`- Feel free to post battle links in ${channelMention('1143739235543818341')} and tag 'Tour Spectator'.
+`- Post links in ${channelMention('1143739235543818341')} and tag 'Tour Spectator'.
 ` +
-`- The winner of the set is responsible for posting the replays in your scheduling thread, please do not post replays in the live-matches channel. Remember to tell your pool moderator who the winner is.
+`- The winner of the set is responsible for posting the replays in your scheduling thread, please do not post replays in the live-matches channel. Please tell your pool moderator who the winner is.
 ` +
+    `You can follow the tournament on [Full Restore Tournaments](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r1)`
 "- You have until the end of Friday (5 days total) to schedule. If you do not schedule before then, you risk taking an activity loss.\n"
 
 
