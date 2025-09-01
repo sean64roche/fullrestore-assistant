@@ -202,6 +202,17 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
     async function processMissingPlayer(id: string, int: number) {
         buf += `Pairing #${int}: player ${userMention(id)} ${id} not found.\n`;
     }
+    try {
+        await axios.post(process.env.API_CLIENTURL ?? 'https://fullrestore.me' + '/api/rounds', {
+            tournamentSlug: tournament?.slug,
+            roundNumber: currentRound,
+            action: 'warm',
+        });
+    } catch (e) {
+        await produceError(interaction, `Error warming cache...`);
+        throw e;
+    }
+
 }
 
 async function createRound(interaction: ChatInputCommandInteraction): Promise<RoundEntity> {
