@@ -1,4 +1,5 @@
 import {ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder} from 'discord.js';
+import {findTournamentByThreadCategorySnowflake} from "./tournament.js";
 
 export const TEST_COMMAND = {
         data: new SlashCommandBuilder()
@@ -7,7 +8,15 @@ export const TEST_COMMAND = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(interaction: ChatInputCommandInteraction) {
-        await interaction.reply('Successful. Cheers.');
+        const channel = interaction.channel;
+        const tournament = await findTournamentByThreadCategorySnowflake(interaction);
+        let categoryId: string;
+        if (!!tournament && channel && channel.isTextBased() && 'parent' in channel && 'parentId' in channel.parent! && !!channel.parent.parentId) {
+            categoryId = channel.parent.parentId;
+            await interaction.reply(`Tournament: ${tournament.name}`);
+        } else {
+            await interaction.reply('No category found.');
+        }
     }
 };
 

@@ -167,3 +167,29 @@ export async function findTournamentByAdminSnowflake(interaction: ChatInputComma
         return;
     }
 }
+
+export async function findTournamentByThreadCategorySnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
+    const channel = interaction.channel;
+    let categoryId;
+    if (channel && channel.isTextBased() && 'parent' in channel && 'parentId' in channel.parent! && !!channel.parent.parentId) {
+        categoryId = channel.parent.parentId;
+    } else {
+        await interaction.reply({
+            content: "This thread doesn't belong to any category!",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+    try {
+        const tournament = await axios.get(
+            apiConfig.baseUrl + apiConfig.tournamentsEndpoint + `?category_snowflake=${categoryId}`
+        );
+        return tournament.data[0];
+    } catch (error) {
+        await interaction.reply({
+            content: "No tournament found in this thread.",
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+}
