@@ -10,10 +10,7 @@ import {
 } from "discord.js";
 import {findTournamentByThreadCategorySnowflake} from "./tournament.js";
 import {
-    EntrantPlayerEntity,
     PairingEntity,
-    ReplayResponse,
-    RoundEntity,
     TournamentResponse, transformEntrantPlayerResponse,
     transformPairingResponse,
     transformRoundResponse
@@ -147,7 +144,14 @@ export const MATCH_COMMAND = {
                     );
                     break;
                 case 'undo':
+                    await interaction.reply({
+                        content: `Undoing result...`,
+                        flags: MessageFlags.Ephemeral,
+                    });
                     await undoReport(interaction, tournament, roundNumber, winner, loser);
+                    await interaction.followUp(
+                        `Result undone for ${winner} vs ${loser}.`
+                    );
                     break;
             }
         } catch (e) {
@@ -169,9 +173,9 @@ export const MATCH_COMMAND = {
 
 async function reportReplays(tournament: TournamentResponse, interaction: ChatInputCommandInteraction) {
     const roundNumber = interaction.options.getInteger('round')!;
-    const player = interaction.options.getUser('winner')!;
-    const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, player);
-    await updatePairingWinner(interaction, pairing, entrantWinner);
+    const winner = interaction.options.getUser('winner')!;
+    const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
+    await updatePairingWinner(interaction, pairing, entrantWinner.id);
     const replayLinks: (string | null)[] = [];
     replayLinks.push(
         interaction.options.getString('replay1'),
@@ -183,7 +187,7 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
     for (const url of replayLinks) {
         if (!!url) {
             try {
-                const replayResponse = await axios.post(
+                await axios.post(
                     apiConfig.baseUrl + apiConfig.replaysEndpoint, {
                     pairing_id: pairing.id,
                     url: url,
@@ -216,7 +220,7 @@ async function reportActivityWin(interaction: ChatInputCommandInteraction, tourn
         const resultsChannel = await channels.fetch(tournament.result_snowflake!);
         const leftPlayerId = pairing.entrant1.player.discordId!;
         const rightPlayerId = pairing.entrant2.player.discordId!;
-        await updatePairingWinner(interaction, pairing, entrantWinner);
+        await updatePairingWinner(interaction, pairing, entrantWinner.id);
         // @ts-ignore
         await resultsChannel!.send({
             content: `${userMention(leftPlayerId)} ${await winnerSide(interaction, leftPlayerId, rightPlayerId)} ${userMention(rightPlayerId)} on activity.`,
@@ -230,7 +234,10 @@ async function reportActivityWin(interaction: ChatInputCommandInteraction, tourn
 }
 
 async function undoReport(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
-
+    const { pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
+    await updatePairingWinner(interaction, pairing, null);
+    await deleteReplays(interaction, pairing.id);
+    return;
 }
 
 async function findPairingInfo(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, player: User) {
@@ -253,20 +260,34 @@ async function findPairingInfo(interaction: ChatInputCommandInteraction, tournam
         return { round, entrantWinner, pairing };
     } catch (e: any) {
         const msg = `Error finding pairing: ${JSON.stringify(e.response?.data || e.message)}`;
-        await produceError(interaction, msg)
+        await produceError(interaction, msg);
         throw e;
     }
 }
 
-async function updatePairingWinner(interaction: ChatInputCommandInteraction, pairing: PairingEntity, entrantWinner: EntrantPlayerEntity) {
+async function updatePairingWinner(interaction: ChatInputCommandInteraction, pairing: PairingEntity, entrantWinnerId: string | null) {
     try {
         await axios.put(
             apiConfig.baseUrl + apiConfig.pairingsEndpoint + '/' + pairing.id,
-            { winner_id: entrantWinner.id }
+            { winner_id: entrantWinnerId }
         );
     } catch (e: any) {
         const msg = `Error inserting winner: ${JSON.stringify(e.response?.data || e.message)}`;
-        await produceError(interaction, msg)
+        await produceError(interaction, msg);
+        throw e;
+    }
+}
+
+async function deleteReplays(interaction: ChatInputCommandInteraction, pairingId: string) {
+    try {
+        await axios.delete(apiConfig.baseUrl + apiConfig.replaysEndpoint + '/' + pairingId);
+        return;
+    } catch (e) {
+        if (e.response.status === 404) {
+            return;
+        }
+        const msg = `Error deleting replay: ${JSON.stringify(e.response?.data || e.message)}`;
+        await produceError(interaction, msg);
         throw e;
     }
 }
