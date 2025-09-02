@@ -204,7 +204,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
         buf += `Pairing #${int}: player ${userMention(id)} ${id} not found.\n`;
     }
     try {
-        await axios.post(process.env.API_CLIENTURL ?? 'https://fullrestore.me' + '/api/rounds', {
+        await axios.post((process.env.API_CLIENTURL ?? 'https://fullrestore.me') + '/api/rounds', {
             tournamentSlug: tournament?.slug,
             roundNumber: currentRound,
             action: 'warm',
