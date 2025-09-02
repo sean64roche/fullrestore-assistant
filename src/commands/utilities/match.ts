@@ -130,23 +130,39 @@ export const MATCH_COMMAND = {
                         content: `Uploading winner & replays...`,
                         flags: MessageFlags.Ephemeral,
                     });
-                    await reportReplays(tournament, interaction);
+                    const replays = await reportReplays(tournament, interaction);
+                    const replayList = replays.filter((replay) => !!replay).join("\n");
                     await interaction.followUp(
-                        `Result recorded.\n
-                        Winner: ${winner}\n
-                        Loser: ${loser}`
+                        `Result recorded.\nWinner: ${winner}\nLoser: ${loser}\nReplays:\n${replayList}`
                     );
                     break;
                 case 'activity':
-                    await reportActivityWin(tournament, roundNumber, winner, loser);
+                    await interaction.reply({
+                        content: `Recording activity win...`,
+                        flags: MessageFlags.Ephemeral,
+                    });
+                    await reportActivityWin(interaction, tournament, roundNumber, winner, loser);
+                    await interaction.followUp(
+                        `Activity win recorded.\nWinner: ${winner}\nLoser: ${loser}`
+                    );
                     break;
                 case 'undo':
-                    await undoReport(tournament, roundNumber, winner, loser);
+                    await undoReport(interaction, tournament, roundNumber, winner, loser);
                     break;
             }
         } catch (e) {
             // await produceError(interaction, e.message);
             return;
+        }
+        try {
+            await axios.post((process.env.API_CLIENTURL ?? 'https://fullrestore.me') + '/api/rounds', {
+                tournamentSlug: tournament?.slug,
+                roundNumber: roundNumber,
+                action: 'warm',
+            });
+        } catch (e) {
+            await produceError(interaction, `Error warming cache...`);
+            throw e;
         }
     }
 }
@@ -154,40 +170,8 @@ export const MATCH_COMMAND = {
 async function reportReplays(tournament: TournamentResponse, interaction: ChatInputCommandInteraction) {
     const roundNumber = interaction.options.getInteger('round')!;
     const player = interaction.options.getUser('winner')!;
-    let round: RoundEntity;
-    let entrantWinner: EntrantPlayerEntity;
-    let pairing: PairingEntity;
-    try {
-        const roundResponse = await axios.get(
-            apiConfig.baseUrl + apiConfig.roundsEndpoint +
-            `?tournament_slug=${tournament.slug}&round=${+roundNumber}`
-        );
-        round = transformRoundResponse(roundResponse.data[0]);
-        const entrantWinnerResponse = await axios.get(
-            apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint +
-            `?tournament_slug=${round.tournament.slug}&discord_id=${player.id}`
-        );
-        entrantWinner = transformEntrantPlayerResponse(entrantWinnerResponse.data[0]);
-        const pairingResponse = await axios.get(
-            apiConfig.baseUrl + apiConfig.pairingsEndpoint +
-            `?round_id=${round.id}&discord_id=${player.id}`
-        );
-        pairing = transformPairingResponse(pairingResponse.data[0]);
-    } catch (e: any) {
-        const msg = `Error finding pairing: ${JSON.stringify(e.response?.data || e.message)}`;
-        await produceError(interaction, msg)
-        throw e;
-    }
-    try {
-        await axios.put(
-            apiConfig.baseUrl + apiConfig.pairingsEndpoint + '/' + pairing.id,
-            { winner_id: entrantWinner.id }
-        );
-    } catch (e: any) {
-        const msg = `Error inserting winner: ${JSON.stringify(e.response?.data || e.message)}`;
-        await produceError(interaction, msg)
-        throw e;
-    }
+    const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, player);
+    await updatePairingWinner(interaction, pairing, entrantWinner);
     const replayLinks: (string | null)[] = [];
     replayLinks.push(
         interaction.options.getString('replay1'),
@@ -196,7 +180,6 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
         interaction.options.getString('replay4'),
         interaction.options.getString('replay5')
     );
-    let replaysResponse: ReplayResponse[] = [];
     for (const url of replayLinks) {
         if (!!url) {
             try {
@@ -206,7 +189,6 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
                     url: url,
                     match_number: replayLinks.indexOf(url) + 1,
                 });
-                replaysResponse.push(replayResponse.data);
             } catch (e) {
                 const msg = `Error uploading replays: ${JSON.stringify(e.response?.data || e.message)}`;
                 await produceError(interaction, msg);
@@ -218,51 +200,105 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
         const resultsChannel = await channels.fetch(tournament.result_snowflake!);
         // @ts-ignore
         await resultsChannel!.send({
-            embeds: [await makeReportEmbed(interaction, pairing, replaysResponse)],
+            embeds: [await makeReportEmbed(interaction, pairing)],
             allowedMentions: { parse: [] },
         });
     } catch (e) {
         await produceError(interaction, `Error finding results channel: ${JSON.stringify(e.response?.data || e.message)}`);
         throw e;
     }
+    return replayLinks;
 }
 
-async function reportActivityWin(tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
+async function reportActivityWin(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
+    const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
+    try {
+        const resultsChannel = await channels.fetch(tournament.result_snowflake!);
+        const leftPlayerId = pairing.entrant1.player.discordId!;
+        const rightPlayerId = pairing.entrant2.player.discordId!;
+        await updatePairingWinner(interaction, pairing, entrantWinner);
+        // @ts-ignore
+        await resultsChannel!.send({
+            content: `${userMention(leftPlayerId)} ${await winnerSide(interaction, leftPlayerId, rightPlayerId)} ${userMention(rightPlayerId)} on activity.`,
+            allowedMentions: { parse: [] },
+        });
+        return;
+    } catch (e) {
+        await produceError(interaction, `Error finding results channel: ${JSON.stringify(e.response?.data || e.message)}`);
+        throw e;
+    }
+}
+
+async function undoReport(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
 
 }
 
-async function undoReport(tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
-
+async function findPairingInfo(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, player: User) {
+    try {
+        const roundResponse = await axios.get(
+            apiConfig.baseUrl + apiConfig.roundsEndpoint +
+            `?tournament_slug=${tournament.slug}&round=${+roundNumber}`
+        );
+        const round = transformRoundResponse(roundResponse.data[0]);
+        const entrantWinnerResponse = await axios.get(
+            apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint +
+            `?tournament_slug=${round.tournament.slug}&discord_id=${player.id}`
+        );
+        const entrantWinner = transformEntrantPlayerResponse(entrantWinnerResponse.data[0]);
+        const pairingResponse = await axios.get(
+            apiConfig.baseUrl + apiConfig.pairingsEndpoint +
+            `?round_id=${round.id}&discord_id=${player.id}`
+        );
+        const pairing = transformPairingResponse(pairingResponse.data[0]);
+        return { round, entrantWinner, pairing };
+    } catch (e: any) {
+        const msg = `Error finding pairing: ${JSON.stringify(e.response?.data || e.message)}`;
+        await produceError(interaction, msg)
+        throw e;
+    }
 }
 
-async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing: PairingEntity, replays: ReplayResponse[] = []): Promise<EmbedBuilder> {
+async function updatePairingWinner(interaction: ChatInputCommandInteraction, pairing: PairingEntity, entrantWinner: EntrantPlayerEntity) {
+    try {
+        await axios.put(
+            apiConfig.baseUrl + apiConfig.pairingsEndpoint + '/' + pairing.id,
+            { winner_id: entrantWinner.id }
+        );
+    } catch (e: any) {
+        const msg = `Error inserting winner: ${JSON.stringify(e.response?.data || e.message)}`;
+        await produceError(interaction, msg)
+        throw e;
+    }
+}
+
+async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing: PairingEntity): Promise<EmbedBuilder> {
     const leftPlayerId = pairing.entrant1.player.discordId!;
     const rightPlayerId = pairing.entrant2.player.discordId!;
+    const winnerText = await winnerSide(interaction, leftPlayerId, rightPlayerId);
     const playerText = (playerId: string) => {
         return userMention(playerId);
     }
-
-    const winnerOnLeft = async () => {
-        if (interaction.options.getUser('winner')!.id === leftPlayerId) {
-            return "⬅️ 🏆";
-        } else if (interaction.options.getUser('winner')!.id === rightPlayerId) {
-            return "🏆 ➡️";
-        } else {
-            const errorMsg = `This shouldn't be reachable. Contact me lmao`
-            await produceError(interaction, errorMsg);
-            throw new Error(errorMsg);
-        }
-    }
-
     const matchText =
         `https://fullrestore.me/match/${pairing.round.tournament.format}/${pairing.round.tournament.slug}/r${pairing.round.roundNumber}/${pairing.entrant1.player.psUser}-vs-${pairing.entrant2.player.psUser}`;
 
     return new EmbedBuilder()
         .setDescription(
-            `${playerText(leftPlayerId)} ${spoiler(await winnerOnLeft())} ${playerText(rightPlayerId)}`
+            `${playerText(leftPlayerId)} ${spoiler(winnerText)} ${playerText(rightPlayerId)}`
         )
         .setTitle(`${pairing.round.tournament.name}, Round ${pairing.round.roundNumber}: ${pairing.entrant1.player.username} vs. ${pairing.entrant2.player.username}`)
         .setURL(matchText);
+}
+
+async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerId: string, rightPlayerId: string): Promise<("⬅️ 🏆" | "🏆 ➡️")> {
+    if (interaction.options.getUser('winner')!.id === leftPlayerId) {
+        return "⬅️ 🏆";
+    } else if (interaction.options.getUser('winner')!.id === rightPlayerId) {
+        return "🏆 ➡️";
+    } else {
+        const errorMsg = `This shouldn't be reachable. Contact me lmao`
+        await produceError(interaction, errorMsg);
+        throw new Error(errorMsg);
+    }
 }
 
 async function produceError(
