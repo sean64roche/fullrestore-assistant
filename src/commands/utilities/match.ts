@@ -10,7 +10,8 @@ import {
 } from "discord.js";
 import {findTournamentByThreadCategorySnowflake} from "./tournament.js";
 import {
-    PairingEntity, PlayerEntity,
+    EntrantPlayerEntity,
+    PairingEntity, PlayerEntity, RoundEntity,
     TournamentResponse, transformEntrantPlayerResponse,
     transformPairingResponse,
     transformRoundResponse
@@ -19,6 +20,12 @@ import axios from "axios";
 import {apiConfig} from "../../repositories.js";
 import {channels} from "../../globals.js";
 
+type PairingInfo = {
+    round: RoundEntity;
+    entrantWinner: EntrantPlayerEntity;
+    entrantLoser: EntrantPlayerEntity;
+    pairing: PairingEntity;
+}
 
 export const MATCH_COMMAND = {
     data: new SlashCommandBuilder()
@@ -175,7 +182,7 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
     const roundNumber = interaction.options.getInteger('round')!;
     const winner = interaction.options.getUser('winner')!;
     const loser = interaction.options.getUser('loser')!;
-    const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
+    const { entrantWinner, pairing }: Partial<PairingInfo> = await findPairingInfo(interaction, tournament, roundNumber, winner, loser);
     await updatePairingWinner(interaction, pairing, entrantWinner.id);
     const replayLinks: (string | null)[] = [];
     replayLinks.push(
@@ -217,7 +224,7 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
 }
 
 async function reportActivityWin(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
-    const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
+    const { entrantWinner, pairing }: Partial<PairingInfo> = await findPairingInfo(interaction, tournament, roundNumber, winner, loser);
     try {
         const resultsChannel = await channels.fetch(tournament.result_snowflake!);
         const leftPlayerId = pairing.entrant1.player.discordId!;
@@ -236,34 +243,55 @@ async function reportActivityWin(interaction: ChatInputCommandInteraction, tourn
 }
 
 async function undoReport(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, winner: User, loser: User) {
-    const { pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
+    const { pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner, loser);
     await updatePairingWinner(interaction, pairing, null);
     await deleteReplays(interaction, pairing.id);
     return;
 }
 
-async function findPairingInfo(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, player: User) {
+async function findPairingInfo(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number, winner: User, loser: User): Promise<PairingInfo> {
+    let round;
+    let entrantWinner;
+    let entrantLoser;
+    let pairing;
     try {
         const roundResponse = await axios.get(
             apiConfig.baseUrl + apiConfig.roundsEndpoint +
             `?tournament_slug=${tournament.slug}&round=${+roundNumber}`
         );
-        const round = transformRoundResponse(roundResponse.data[0]);
+        round = transformRoundResponse(roundResponse.data[0]);
         const entrantWinnerResponse = await axios.get(
             apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint +
-            `?tournament_slug=${round.tournament.slug}&discord_id=${player.id}`
+            `?tournament_slug=${round.tournament.slug}&discord_id=${winner.id}`
         );
-        const entrantWinner = transformEntrantPlayerResponse(entrantWinnerResponse.data[0]);
+        const entrantLoserResponse = await axios.get(
+            apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint +
+            `?tournament_slug=${round.tournament.slug}&discord_id=${loser.id}`
+        );
+        entrantWinner = transformEntrantPlayerResponse(entrantWinnerResponse.data[0]);
+        entrantLoser = transformEntrantPlayerResponse(entrantLoserResponse.data[0]);
         const pairingResponse = await axios.get(
             apiConfig.baseUrl + apiConfig.pairingsEndpoint +
-            `?round_id=${round.id}&discord_id=${player.id}`
+            `?round_id=${round.id}&discord_id=${winner.id}`
         );
-        const pairing = transformPairingResponse(pairingResponse.data[0]);
-        return { round, entrantWinner, pairing };
+        pairing = transformPairingResponse(pairingResponse.data[0]);
     } catch (e: any) {
         const msg = `Error finding pairing: ${JSON.stringify(e.response?.data || e.message)}`;
         await produceError(interaction, msg);
         throw e;
+    }
+    const winnerIsValid = (entrantWinner.id === pairing.entrant1.id) || (entrantWinner.id === pairing.entrant2.id);
+    const loserIsValid = (entrantLoser.id === pairing.entrant1.id) || (entrantLoser.id === pairing.entrant2.id);
+    if (winnerIsValid && loserIsValid) return {
+        round,
+        entrantWinner,
+        entrantLoser,
+        pairing
+    };
+    else {
+        const msg = `The players retrieved are not paired together.`;
+        await produceError(interaction, msg);
+        throw new Error(msg);
     }
 }
 
@@ -295,8 +323,8 @@ async function deleteReplays(interaction: ChatInputCommandInteraction, pairingId
 }
 
 async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing: PairingEntity): Promise<EmbedBuilder> {
-    const leftPlayer: PlayerEntity = pairing.entrant1.player!;
-    const rightPlayer: PlayerEntity = pairing.entrant2.player!;
+    const leftPlayer: PlayerEntity = pairing.entrant1.player;
+    const rightPlayer: PlayerEntity = pairing.entrant2.player;
     const winnerText = await winnerSide(interaction, leftPlayer.discordId!, rightPlayer.discordId!);
     const playerText = (player: PlayerEntity) => {
         return userMention(player.discordId!);
