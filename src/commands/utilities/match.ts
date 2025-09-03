@@ -10,7 +10,7 @@ import {
 } from "discord.js";
 import {findTournamentByThreadCategorySnowflake} from "./tournament.js";
 import {
-    PairingEntity,
+    PairingEntity, PlayerEntity,
     TournamentResponse, transformEntrantPlayerResponse,
     transformPairingResponse,
     transformRoundResponse
@@ -223,12 +223,12 @@ async function reportActivityWin(interaction: ChatInputCommandInteraction, tourn
         await updatePairingWinner(interaction, pairing, entrantWinner.id);
         // @ts-ignore
         await resultsChannel!.send({
-            content: `${userMention(leftPlayerId)} ${await winnerSide(interaction, leftPlayerId, rightPlayerId)} ${userMention(rightPlayerId)} on activity.`,
+            content: `${userMention(leftPlayerId)}\n${await winnerSide(interaction, leftPlayerId, rightPlayerId)}\n${userMention(rightPlayerId)} on activity.`,
             allowedMentions: { parse: [] },
         });
         return;
     } catch (e) {
-        await produceError(interaction, `Error finding results channel: ${JSON.stringify(e.response?.data || e.message)}`);
+        await produceError(interaction, `Error posting in results channel: ${JSON.stringify(e.response?.data || e.message)}`);
         throw e;
     }
 }
@@ -293,32 +293,32 @@ async function deleteReplays(interaction: ChatInputCommandInteraction, pairingId
 }
 
 async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing: PairingEntity): Promise<EmbedBuilder> {
-    const leftPlayerId = pairing.entrant1.player.discordId!;
-    const rightPlayerId = pairing.entrant2.player.discordId!;
-    const winnerText = await winnerSide(interaction, leftPlayerId, rightPlayerId);
-    const playerText = (playerId: string) => {
-        return userMention(playerId);
+    const leftPlayer: PlayerEntity = pairing.entrant1.player!;
+    const rightPlayer: PlayerEntity = pairing.entrant2.player!;
+    const winnerText = await winnerSide(interaction, leftPlayer.discordId!, rightPlayer.discordId!);
+    const playerText = (player: PlayerEntity) => {
+        return userMention(player.discordId!);
     }
     const matchText =
         `https://fullrestore.me/match/${pairing.round.tournament.format}/${pairing.round.tournament.slug}/r${pairing.round.roundNumber}/${pairing.entrant1.player.psUser}-vs-${pairing.entrant2.player.psUser}`;
 
     return new EmbedBuilder()
         .setDescription(
-            `${playerText(leftPlayerId)} ${spoiler(winnerText)} ${playerText(rightPlayerId)}`
+            `${playerText(leftPlayer)}\n${spoiler(winnerText)}\n${playerText(rightPlayer)}`
         )
         .setTitle(`${pairing.round.tournament.name}, Round ${pairing.round.roundNumber}: ${pairing.entrant1.player.username} vs. ${pairing.entrant2.player.username}`)
         .setURL(matchText);
 }
 
-async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerId: string, rightPlayerId: string): Promise<("⬅️ 🏆" | "🏆 ➡️")> {
-    if (interaction.options.getUser('winner')!.id === leftPlayerId) {
-        return "⬅️ 🏆";
-    } else if (interaction.options.getUser('winner')!.id === rightPlayerId) {
-        return "🏆 ➡️";
+async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDiscordId: string, rightPlayerDiscordId: string): Promise<("⬆️\n🏆" | "🏆\n⬇️")> {
+    if (interaction.options.getUser('winner')!.id === leftPlayerDiscordId) {
+        return "⬆️\n🏆";
+    } else if (interaction.options.getUser('winner')!.id === rightPlayerDiscordId) {
+        return "🏆\n⬇️";
     } else {
-        const errorMsg = `This shouldn't be reachable. Contact me lmao`
-        await produceError(interaction, errorMsg);
-        throw new Error(errorMsg);
+        const msg = `This shouldn't be reachable. Contact me lmao`
+        await produceError(interaction, msg);
+        throw new Error(msg);
     }
 }
 
