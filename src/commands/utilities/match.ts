@@ -232,7 +232,7 @@ async function reportActivityWin(interaction: ChatInputCommandInteraction, tourn
         await updatePairingWinner(interaction, pairing, entrantWinner.id);
         // @ts-ignore
         await resultsChannel!.send({
-            content: `${userMention(leftPlayerId)}\n${await winnerSide(interaction, leftPlayerId, rightPlayerId)}\n${userMention(rightPlayerId)} on activity.`,
+            content: `${userMention(leftPlayerId)} ${await winnerSide(interaction, leftPlayerId, rightPlayerId)} ${userMention(rightPlayerId)} on activity.`,
             allowedMentions: { parse: [] },
         });
         return;
@@ -334,17 +334,17 @@ async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing
 
     return new EmbedBuilder()
         .setDescription(
-            `${playerText(leftPlayer)}\n${spoiler(winnerText)}\n${playerText(rightPlayer)}`
+            `${playerText(leftPlayer)} ${spoiler(winnerText)} ${playerText(rightPlayer)}`
         )
         .setTitle(`${pairing.round.tournament.name}, Round ${pairing.round.roundNumber}: ${pairing.entrant1.player.username} vs. ${pairing.entrant2.player.username}`)
         .setURL(matchText);
 }
 
-async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDiscordId: string, rightPlayerDiscordId: string): Promise<("🏆⬆️" | "🏆⬇️")> {
+async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDiscordId: string, rightPlayerDiscordId: string): Promise<("🇼 | 🇱" | "🇱 | 🇼")> {
     if (interaction.options.getUser('winner')!.id === leftPlayerDiscordId) {
-        return "🏆⬆️";
+        return "🇼 | 🇱";
     } else if (interaction.options.getUser('winner')!.id === rightPlayerDiscordId) {
-        return "🏆⬇️";
+        return "🇱 | 🇼";
     } else {
         const msg = `This shouldn't be reachable. Contact me lmao`
         await produceError(interaction, msg);
