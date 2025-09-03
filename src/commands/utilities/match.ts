@@ -340,11 +340,11 @@ async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing
         .setURL(matchText);
 }
 
-async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDiscordId: string, rightPlayerDiscordId: string): Promise<("⬆️\n🏆" | "🏆\n⬇️")> {
+async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDiscordId: string, rightPlayerDiscordId: string): Promise<("🏆⬆️" | "🏆⬇️")> {
     if (interaction.options.getUser('winner')!.id === leftPlayerDiscordId) {
-        return "⬆️\n🏆";
+        return "🏆⬆️";
     } else if (interaction.options.getUser('winner')!.id === rightPlayerDiscordId) {
-        return "🏆\n⬇️";
+        return "🏆⬇️";
     } else {
         const msg = `This shouldn't be reachable. Contact me lmao`
         await produceError(interaction, msg);
