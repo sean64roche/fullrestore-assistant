@@ -174,6 +174,7 @@ export const MATCH_COMMAND = {
 async function reportReplays(tournament: TournamentResponse, interaction: ChatInputCommandInteraction) {
     const roundNumber = interaction.options.getInteger('round')!;
     const winner = interaction.options.getUser('winner')!;
+    const loser = interaction.options.getUser('loser')!;
     const { entrantWinner, pairing } = await findPairingInfo(interaction, tournament, roundNumber, winner);
     await updatePairingWinner(interaction, pairing, entrantWinner.id);
     const replayLinks: (string | null)[] = [];
@@ -195,6 +196,7 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
                 });
             } catch (e) {
                 const msg = `Error uploading replays: ${JSON.stringify(e.response?.data || e.message)}`;
+                await undoReport(interaction, tournament, roundNumber, winner, loser);
                 await produceError(interaction, msg);
                 throw e;
             }
