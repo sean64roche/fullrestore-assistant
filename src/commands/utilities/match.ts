@@ -19,6 +19,7 @@ import {
 import axios from "axios";
 import {apiConfig} from "../../repositories.js";
 import {channels} from "../../globals.js";
+import {warmRoundCache} from "../../utils/cache.js";
 
 type PairingInfo = {
     round: RoundEntity;
@@ -166,11 +167,7 @@ export const MATCH_COMMAND = {
             return;
         }
         try {
-            await axios.post((process.env.API_CLIENTURL ?? 'https://fullrestore.me') + '/api/rounds', {
-                tournamentSlug: tournament?.slug,
-                roundNumber: roundNumber,
-                action: 'warm',
-            });
+            await warmRoundCache(tournament.slug, roundNumber);
         } catch (e) {
             await produceError(interaction, `Error warming cache...`);
             throw e;
@@ -346,7 +343,7 @@ async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDi
     } else if (interaction.options.getUser('winner')!.id === rightPlayerDiscordId) {
         return "🇱 | 🇼";
     } else {
-        const msg = `This shouldn't be reachable. Contact me lmao`
+        const msg = `This shouldn't be reachable. Contact me lmao`;
         await produceError(interaction, msg);
         throw new Error(msg);
     }
