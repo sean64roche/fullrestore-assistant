@@ -5,6 +5,7 @@ import {
     PermissionFlagsBits,
     SlashCommandBuilder,
     spoiler,
+    TextChannel,
     User,
     userMention
 } from "discord.js";
@@ -137,7 +138,7 @@ export const MATCH_COMMAND = {
                     });
                     const replays = await reportReplays(tournament, interaction);
                     const replayList = replays.filter((replay) => !!replay).join("\n");
-                    await interaction.followUp(
+                    await (interaction.channel as TextChannel).send(
                         `Result recorded.\nWinner: ${winner}\nLoser: ${loser}\nReplays:\n${replayList}`
                     );
                     break;
@@ -147,7 +148,7 @@ export const MATCH_COMMAND = {
                         flags: MessageFlags.Ephemeral,
                     });
                     await reportActivityWin(interaction, tournament, roundNumber, winner, loser);
-                    await interaction.followUp(
+                    await (interaction.channel as TextChannel).send(
                         `Activity win recorded.\nWinner: ${winner}\nLoser: ${loser}`
                     );
                     break;
@@ -157,7 +158,7 @@ export const MATCH_COMMAND = {
                         flags: MessageFlags.Ephemeral,
                     });
                     await undoReport(interaction, tournament, roundNumber, winner, loser);
-                    await interaction.followUp(
+                    await (interaction.channel as TextChannel).send(
                         `Result undone for ${winner} vs ${loser}.`
                     );
                     break;
