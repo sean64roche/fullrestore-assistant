@@ -13,6 +13,7 @@ import {PairingDto, RoundEntity, transformTournamentResponse} from "@fullrestore
 import {findTournamentByAdminSnowflake} from "./tournament.js";
 import {apiConfig, roundRepo} from "../../repositories.js";
 import axios from "axios";
+import {createNewPairingThread} from "../../utils/threadManager.js";
 
 export const ROUND_COMMAND = {
     data: new SlashCommandBuilder()
@@ -184,18 +185,14 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
             await produceError(interaction, `Error uploading pairing to db: ${leftPlayer} vs. ${rightPlayer}`);
             throw e;
         }
-        await pool.threads.create({
-            name: leftPlayer.user.username + " vs. " + rightPlayer.user.username,
-            // autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
-        });
-        const thisThread = pool.threads.cache.find((x: {
-            name: string;
-        }) => x.name === `${leftPlayer.user.username} vs. ${rightPlayer.user.username}`)!;
-        await thisThread.send(`${leftPlayer} vs ${rightPlayer}\n\n` +
-            `Please schedule in this thread. Your pool moderator is ${moderator}, please upload all replays in this thread.\n` +
-            `The round ends ${deadline}, all games must be played by then. Good luck and have fun!`
+        await createNewPairingThread(
+            interaction,
+            pool,
+            leftPlayer.user,
+            rightPlayer.user,
+            moderator,
+            deadline,
         );
-        console.log(leftPlayer + " vs " + rightPlayer);
     }
     await pool.send(`${poolRole}\n\n` + finalPoolMessage + `- The round ends ${deadline}. All games must be played by then.`)
     await interaction.followUp(buf + `Pairings submitted in ${pool}.`);
