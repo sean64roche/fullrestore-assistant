@@ -5,6 +5,7 @@ import {IN_COMMAND} from "./utilities/in.js";
 import {OUT_COMMAND} from "./utilities/out.js";
 import {PLAYER_COMMAND} from "./utilities/player.js";
 import {MATCH_COMMAND} from "./utilities/match.js";
+import {PAIRING_COMMAND} from "./utilities/pairing.js";
 
 export default [
     TEST_COMMAND,
@@ -14,4 +15,5 @@ export default [
     OUT_COMMAND,
     PLAYER_COMMAND,
     MATCH_COMMAND,
+    PAIRING_COMMAND,
 ] as const;
