@@ -3,14 +3,19 @@ import {
     ChatInputCommandInteraction,
     MessageFlags,
     PermissionFlagsBits,
-    SlashCommandBuilder, TextChannel, ThreadChannel, userMention
+    SlashCommandBuilder,
+    TextChannel,
+    ThreadChannel,
+    userMention
 } from "discord.js";
 import {findTournamentByAdminSnowflake, findTournamentByThreadCategorySnowflake} from "./tournament.js";
 import {confirmAction} from "../../utils/confirmAction.js";
 import {
     PairingEntity,
-    TournamentResponse, transformEntrantPlayerResponse,
-    transformPairingResponse, transformRoundResponse
+    TournamentResponse,
+    transformEntrantPlayerResponse,
+    transformPairingResponse,
+    transformRoundResponse
 } from "@fullrestore/service";
 import axios from "axios";
 import {apiConfig} from "../../repositories.js";
@@ -246,7 +251,8 @@ async function substitutePlayers(
     let pairing: PairingEntity;
     try {
         const pairingResponse = await axios.get(
-            apiConfig.baseUrl + apiConfig.pairingsEndpoint + `?round_id=${round.id}&discord_id=${oldPlayerId}`
+            apiConfig.baseUrl + apiConfig.pairingsEndpoint +
+            `?round_id=${round.id}&discord_id=${oldPlayerId}`
         );
         pairing = transformPairingResponse(pairingResponse.data[0]);
         if (!!pairing.winner) {
