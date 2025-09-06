@@ -166,12 +166,12 @@ export const MATCH_COMMAND = {
         } catch (e) {
             // await produceError(interaction, e.message);
             return;
-        }
-        try {
-            await warmRoundCache(tournament.slug, roundNumber);
-        } catch (e) {
-            await produceError(interaction, `Error warming cache...`);
-            throw e;
+        } finally {
+            try {
+                await warmRoundCache(tournament.slug, roundNumber);
+            } catch (e) {
+                await produceError(interaction, `Error warming cache...`);
+            }
         }
     }
 }
@@ -215,7 +215,7 @@ async function reportReplays(tournament: TournamentResponse, interaction: ChatIn
             allowedMentions: { parse: [] },
         });
     } catch (e) {
-        await produceError(interaction, `Error finding results channel: ${JSON.stringify(e.response?.data || e.message)}`);
+        await produceError(interaction, `Error posting in results channel: ${JSON.stringify(e.response?.data || e.message)}`);
         throw e;
     }
     return replayLinks;
@@ -330,12 +330,21 @@ async function makeReportEmbed(interaction: ChatInputCommandInteraction, pairing
     const matchText =
         `https://fullrestore.me/match/${pairing.round.tournament.format}/${pairing.round.tournament.slug}/r${pairing.round.roundNumber}/${pairing.entrant1.player.psUser}-vs-${pairing.entrant2.player.psUser}`;
 
-    return new EmbedBuilder()
+    const embed = new EmbedBuilder()
         .setDescription(
             `${playerText(leftPlayer)} ${spoiler(winnerText)} ${playerText(rightPlayer)}`
         )
         .setTitle(`${pairing.round.tournament.name}, Round ${pairing.round.roundNumber}: ${pairing.entrant1.player.username} vs. ${pairing.entrant2.player.username}`)
         .setURL(matchText);
+    try {
+        const response = await fetch(`https://fullrestore.b-cdn.net/${pairing.round.tournament.slug}.webp`);
+        if (response) {
+            embed.setThumbnail(`https://fullrestore.b-cdn.net/${pairing.round.tournament.slug}.webp`);
+        }
+    } catch (e) {
+        // swallow this
+    }
+    return embed;
 }
 
 async function winnerSide(interaction: ChatInputCommandInteraction, leftPlayerDiscordId: string, rightPlayerDiscordId: string): Promise<("🇼 | 🇱" | "🇱 | 🇼")> {
