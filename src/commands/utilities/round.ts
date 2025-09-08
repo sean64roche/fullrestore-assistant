@@ -311,10 +311,10 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
                     `Error on listing entrant ${entrant.player.discordUser}: 
                     ${JSON.stringify(e.response?.data || e.message)}`
                 );
+            }
         }
         await botChannel.send(codeBlock(buf));
         buf = '';
-        }
     }
 }
 
