@@ -278,6 +278,7 @@ export async function createRound(interaction: ChatInputCommandInteraction): Pro
 }
 
 async function getRoundResults(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number) {
+    const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
     const round = await getRound(interaction, tournament.slug, roundNumber);
     const pairingsResponse = await axios.get(
         apiConfig.baseUrl + apiConfig.pairingsEndpoint + `?round_id=${round.id}`
@@ -286,16 +287,17 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
     pairingsResponse.data.forEach(
         (pairing: PairingResponse) => pairings.push(transformPairingResponse(pairing))
     );
+    await botChannel.send(`pairingsResponse size: ${pairingsResponse.data.length}`);
     const entrants: EntrantPlayerEntity[] = [];
     pairings.forEach(pairing => {
         entrants.push(pairing.entrant1);
         entrants.push(pairing.entrant2);
     });
-    const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
+    await botChannel.send(`entrants size: ${entrants.length}`);
     await botChannel.send(codeBlock(`discord_user | discord_id | wins\n------------------------------\n`));
     let i = 0;
     while (i < pairings.length) {
-        const entrantsToSend = entrants.slice(i, i + 49);
+        const entrantsToSend = entrants.slice(i, i + 50);
         i += 50;
         let buf = '';
         try {
