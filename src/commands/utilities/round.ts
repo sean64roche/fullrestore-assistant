@@ -296,7 +296,7 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
     await botChannel.send(`entrants size: ${entrants.length}`);
     await botChannel.send(codeBlock(`discord_user | discord_id | wins\n------------------------------\n`));
     let i = 0;
-    while (i < pairings.length) {
+    while (i < entrants.length) {
         const entrantsToSend = entrants.slice(i, i + 50);
         i += 50;
         let buf = '';
