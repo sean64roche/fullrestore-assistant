@@ -292,10 +292,12 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
         entrants.push(pairing.entrant2);
     });
     const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
-    let buf = `discord_user | discord_id | wins\n------------------------------\n`;
+    await botChannel.send(codeBlock(`discord_user | discord_id | wins\n------------------------------\n`));
     let i = 0;
     while (i < pairings.length) {
-        const entrantsToSend = entrants.slice(i, i + 19);
+        const entrantsToSend = entrants.slice(i, i + 49);
+        i += 50;
+        let buf = '';
         try {
             for (const entrant of entrantsToSend) {
                 const entrantWinsResponse: AxiosResponse<EntrantPlayerResultResponse> = await axios.get(
@@ -304,7 +306,7 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
                 buf += `${entrant.player.discordUser},${entrant.player.discordId},${entrantWinsResponse.data.wins + entrantWinsResponse.data.byes}\n`;
             }
             await botChannel.send(codeBlock(buf));
-            i += 20;
+            buf = '';
         } catch (e) {
             await interaction.followUp(
         `Error on listing entrants: 
