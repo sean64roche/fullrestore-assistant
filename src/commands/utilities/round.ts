@@ -297,7 +297,7 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
     await botChannel.send(codeBlock(`discord_user | discord_id | wins\n------------------------------\n`));
     let i = 0;
     while (i < entrants.length) {
-        const entrantsToSend = entrants.slice(i, i + 50);
+        const entrantsToSend = entrants.slice(i, i + 49);
         i += 50;
         let buf = '';
         try {
