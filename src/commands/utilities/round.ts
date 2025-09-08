@@ -314,7 +314,6 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
         }
         await botChannel.send(codeBlock(buf));
         buf = '';
-
         }
     }
 }
