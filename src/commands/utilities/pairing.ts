@@ -15,11 +15,11 @@ import {
     TournamentResponse,
     transformEntrantPlayerResponse,
     transformPairingResponse,
-    transformRoundResponse
 } from "@fullrestore/service";
 import axios from "axios";
 import {apiConfig} from "../../repositories.js";
 import {createNewPairingThread} from "../../utils/threadManager.js";
+import {getRound} from "./round.js";
 
 export const PAIRING_COMMAND = {
     data: new SlashCommandBuilder()
@@ -305,19 +305,6 @@ async function substitutePlayers(
             `New pairing: ${userMention(entrant1.player.discordId!)} vs. ${userMention(entrant2.player.discordId!)}.\n` +
             `See the start of this channel for your pool moderator & round deadline.`
         );
-    }
-}
-
-async function getRound(interaction: ChatInputCommandInteraction, tournamentSlug: string, roundNumber: number) {
-    try {
-        const roundResponse = await axios.get(
-            apiConfig.baseUrl + apiConfig.roundsEndpoint + `?tournament_slug=${tournamentSlug}&round=${+roundNumber}`
-        );
-        return transformRoundResponse(roundResponse.data[0]);
-    } catch (e) {
-        const msg = `Error while fetching round: ${JSON.stringify(e.response?.data || e.message)}`;
-        await produceError(interaction, msg);
-        throw e;
     }
 }
 

@@ -128,8 +128,8 @@ async function listTournamentEntrants(
     while (i < entrants.length) {
         const entrantsToSend = entrants.slice(i, i + 49);
         let buf = '';
+        const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
         try {
-            const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
             for (const entrant of entrantsToSend) {
                 const entrantEntity = transformEntrantPlayerResponse(entrant);
                 if (!!entrantEntity.player.discordId) {
@@ -143,10 +143,10 @@ async function listTournamentEntrants(
                 allowedMentions: { parse: [] },
             });
             i += 50;
-        } catch (error) {
+        } catch (e) {
             await interaction.followUp(
-                `Error on listing entrants: 
-                        ${error.message}`
+        `Error on listing entrants: 
+                ${JSON.stringify(e.response?.data || e.message)}`
             );
             return;
         }

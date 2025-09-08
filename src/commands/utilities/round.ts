@@ -2,17 +2,28 @@ import {
     channelMention,
     ChannelType,
     ChatInputCommandInteraction,
+    codeBlock,
     MessageFlags,
     PermissionFlagsBits,
     SlashCommandBuilder,
+    Snowflake,
     TextChannel,
     userMention
 } from 'discord.js';
-import {revivalGuild} from '../../globals.js'
-import {PairingDto, RoundEntity, transformTournamentResponse} from "@fullrestore/service";
+import {channels, revivalGuild} from '../../globals.js'
+import {
+    EntrantPlayerEntity,
+    EntrantPlayerResultResponse,
+    PairingDto, PairingEntity, PairingResponse,
+    RoundEntity,
+    TournamentResponse,
+    transformPairingResponse,
+    transformRoundResponse,
+    transformTournamentResponse
+} from "@fullrestore/service";
 import {findTournamentByAdminSnowflake} from "./tournament.js";
 import {apiConfig, roundRepo} from "../../repositories.js";
-import axios from "axios";
+import axios, {AxiosResponse} from "axios";
 import {createNewPairingThread} from "../../utils/threadManager.js";
 
 export const ROUND_COMMAND = {
@@ -80,7 +91,17 @@ export const ROUND_COMMAND = {
                     .setDescription('End date-time of this round. Please enter in YYYY-MM-DD')
                     .setRequired(false)
             )
-    ),
+    )
+        .addSubcommand(subCommand =>
+        subCommand
+            .setName('results')
+            .setDescription('Returns a list of all results up to the given round.')
+            .addIntegerOption(option =>
+                option.setName('round')
+                    .setDescription('Round number')
+                    .setRequired(true)
+            )
+        ),
     async execute(interaction: ChatInputCommandInteraction) {
         switch(interaction.options.getSubcommand()) {
             case 'pair':
@@ -98,6 +119,26 @@ export const ROUND_COMMAND = {
                     await produceError(interaction, JSON.stringify(error.response?.data));
                 }
                 break;
+            case 'results':
+                await interaction.reply({
+                    content: "Fetching results...",
+                    flags: MessageFlags.Ephemeral,
+                });
+                try {
+                    const tournament = await findTournamentByAdminSnowflake(interaction);
+                    if (!tournament) {
+                        await interaction.reply({
+                            content: `Error: no tournament found.`,
+                            flags: MessageFlags.Ephemeral,
+                        });
+                        return;
+                    }
+                    await getRoundResults(interaction, tournament, interaction.options.getInteger('round')!);
+                } catch (e) {
+                    const msg = JSON.stringify(e.response?.data || e.message)
+                    await produceError(interaction, msg);
+                }
+                break;
         }
     }
 }
@@ -111,7 +152,9 @@ const finalPoolMessage =
 ` +
 `- The winner of the set is responsible for posting the replays in your scheduling thread, please do not post replays in the live-matches channel. Please tell your pool moderator who the winner is.
 ` +
-    `You can follow the tournament on [Full Restore Tournaments](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r1)` +
+`Use the [Discord Timestamp Converter tool](https://sesh.fyi/timestamp/) where necessary to ease scheduling. It shows your local time in contrast to your opponent's local time.
+` +
+    `You can follow this round at [Full Restore Tournaments r2](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r2).` +
 "- You have until the end of Friday (5 days total) to schedule. If you do not schedule before then, you risk taking an activity loss.\n"
 
 
@@ -213,7 +256,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
 
 }
 
-async function createRound(interaction: ChatInputCommandInteraction): Promise<RoundEntity> {
+export async function createRound(interaction: ChatInputCommandInteraction): Promise<RoundEntity> {
     try {
         const tournament = await findTournamentByAdminSnowflake(interaction);
         if (!tournament) {
@@ -228,12 +271,60 @@ async function createRound(interaction: ChatInputCommandInteraction): Promise<Ro
                 interaction.options.getString('deadline') ?? undefined,
             );
         }
-
     } catch (error) {
         await produceError(interaction, JSON.stringify(error.response?.data));
         throw error;
     }
+}
 
+async function getRoundResults(interaction: ChatInputCommandInteraction, tournament: TournamentResponse, roundNumber: number) {
+    const round = await getRound(interaction, tournament.slug, roundNumber);
+    const pairingsResponse = await axios.get(
+        apiConfig.baseUrl + apiConfig.pairingsEndpoint + `?round_id=${round.id}`
+    );
+    const pairings: PairingEntity[] = [];
+    pairingsResponse.data.forEach(
+        (pairing: PairingResponse) => pairings.push(transformPairingResponse(pairing))
+    );
+    const entrants: EntrantPlayerEntity[] = [];
+    pairings.forEach(pairing => {
+        entrants.push(pairing.entrant1);
+        entrants.push(pairing.entrant2);
+    });
+    const botChannel = channels.cache.get(process.env.BOT_STUFF as Snowflake) as TextChannel;
+    let buf = `discord_user | discord_id | wins\n------------------------------\n`;
+    let i = 0;
+    while (i < pairings.length) {
+        const entrantsToSend = entrants.slice(i, i + 19);
+        try {
+            for (const entrant of entrantsToSend) {
+                const entrantWinsResponse: AxiosResponse<EntrantPlayerResultResponse> = await axios.get(
+                    apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `/${entrant.id}/wins?round=${roundNumber}`,
+                );
+                buf += `${entrant.player.discordUser},${entrant.player.discordId},${entrantWinsResponse.data.wins + entrantWinsResponse.data.byes}\n`;
+            }
+            await botChannel.send(codeBlock(buf));
+            i += 20;
+        } catch (e) {
+            await interaction.followUp(
+        `Error on listing entrants: 
+                ${JSON.stringify(e.response?.data || e.message)}`
+            );
+        }
+    }
+}
+
+export async function getRound(interaction: ChatInputCommandInteraction, tournamentSlug: string, roundNumber: number) {
+    try {
+        const roundResponse = await axios.get(
+            apiConfig.baseUrl + apiConfig.roundsEndpoint + `?tournament_slug=${tournamentSlug}&round=${+roundNumber}`
+        );
+        return transformRoundResponse(roundResponse.data[0]);
+    } catch (e) {
+        const msg = `Error while fetching round: ${JSON.stringify(e.response?.data || e.message)}`;
+        await produceError(interaction, msg);
+        throw e;
+    }
 }
 
 async function produceError(
