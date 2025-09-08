@@ -300,20 +300,21 @@ async function getRoundResults(interaction: ChatInputCommandInteraction, tournam
         const entrantsToSend = entrants.slice(i, i + 49);
         i += 50;
         let buf = '';
-        try {
-            for (const entrant of entrantsToSend) {
+        for (const entrant of entrantsToSend) {
+            try {
                 const entrantWinsResponse: AxiosResponse<EntrantPlayerResultResponse> = await axios.get(
                     apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `/${entrant.id}/wins?round=${roundNumber}`,
                 );
                 buf += `${entrant.player.discordUser},${entrant.player.discordId},${entrantWinsResponse.data.wins + entrantWinsResponse.data.byes}\n`;
-            }
-            await botChannel.send(codeBlock(buf));
-            buf = '';
-        } catch (e) {
-            await interaction.followUp(
-        `Error on listing entrants: 
-                ${JSON.stringify(e.response?.data || e.message)}`
-            );
+            } catch (e) {
+                await interaction.followUp(
+                    `Error on listing entrant ${entrant.player.discordUser}: 
+                    ${JSON.stringify(e.response?.data || e.message)}`
+                );
+        }
+        await botChannel.send(codeBlock(buf));
+        buf = '';
+
         }
     }
 }
