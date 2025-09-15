@@ -1,20 +1,29 @@
 import {
     ChatInputCommandInteraction,
     GuildMember,
-    MessageFlags, PermissionFlagsBits,
-    SlashCommandBuilder, Snowflake, TextChannel, userMention
+    MessageFlags,
+    PermissionFlagsBits,
+    SlashCommandBuilder,
+    Snowflake,
+    TextChannel,
+    userMention
 } from "discord.js";
+
 import {
     EntrantPlayerResponse,
     PlayerDto,
+    TournamentResponse,
     transformEntrantPlayerResponse
 } from "@fullrestore/service";
+
 import {createEntrantPlayer} from "./in.js";
 import {channels} from "../../globals.js";
 import {DiscordPlayer, removeEntrantPlayer} from "./out.js";
 import {apiConfig} from "../../repositories.js";
 import axios, {AxiosResponse} from "axios";
-import {findTournamentByAdminSnowflake, findTournamentBySignupSnowflake} from "./tournament.js";
+import {findTournamentByAdminSnowflake} from "./tournament.js";
+import {getRound} from "./round.js";
+import {getEntrantPlayer} from "./pairing.js";
 
 export const PLAYER_COMMAND = {
     data: new SlashCommandBuilder()
@@ -46,14 +55,29 @@ export const PLAYER_COMMAND = {
                     .setRequired(true)
         ),
     )
-        .addSubcommand(subcommand =>
-        subcommand
-            .setName('list')
-            .setDescription('List of all players signed up for this tournament.')
-        ),
+    .addSubcommand(subcommand =>
+    subcommand
+        .setName('list')
+        .setDescription('List of all players signed up for this tournament.')
+    )
+    .addSubcommand(subcommand =>
+    subcommand
+    .setName('bye')
+    .setDescription('Award proxy win to a player who doesn\'t have an opponent')
+        .addUserOption(option =>
+        option.setName('user')
+            .setDescription('Player to award bye')
+            .setRequired(true)
+        )
+        .addIntegerOption(option =>
+        option.setName('round')
+            .setDescription('Round to award bye on')
+            .setRequired(true)
+        )
+    ),
     async execute(interaction: ChatInputCommandInteraction) {
         let tournamentResponse;
-        tournamentResponse = await findTournamentBySignupSnowflake(interaction);
+        tournamentResponse = await findTournamentByAdminSnowflake(interaction);
         const playerMember = interaction.options.getMember('user');
         let subcommand = interaction.options.getSubcommand();
         if (subcommand === 'signup') {
@@ -116,6 +140,21 @@ export const PLAYER_COMMAND = {
                         ${error.message}`
                 );
             }
+        } else if (subcommand === 'bye') {
+            if (!tournamentResponse) {
+                await interaction.reply({
+                    content: "No tournament found in this channel.",
+                    flags: MessageFlags.Ephemeral,
+                });
+                return;
+            }
+            await interaction.reply({
+                content: `Assigning bye to ${playerMember}...`,
+            });
+            await createPlayerBye(interaction, tournamentResponse);
+            await interaction.followUp({
+                content: `Bye successfully added on Round ${interaction.options.getInteger('round')!} for ${playerMember}`,
+            });
         }
     }
 }
@@ -153,6 +192,24 @@ async function listTournamentEntrants(
     }
 }
 
+async function createPlayerBye(interaction: ChatInputCommandInteraction, tournament: TournamentResponse) {
+    const roundNumber = interaction.options.getInteger('round')!;
+    const userId = interaction.options.getUser('user')!.id;
+    const round = await getRound(interaction, tournament.slug, roundNumber);
+    const entrant = await getEntrantPlayer(interaction, tournament.slug, userId);
+    try {
+        await axios.post(apiConfig.baseUrl + apiConfig.roundByesEndpoint, {
+            round_id: round.id,
+            entrant_player_id: entrant.id,
+        });
+    } catch (e) {
+        await interaction.followUp(
+            `Error on creating bye: 
+                ${JSON.stringify(e.response?.data || e.message)}`
+        );
+        return;
+    }
+}
 // export async function findTournamentByCategorySnowflake(interaction: ChatInputCommandInteraction): Promise<TournamentResponse | undefined> {
 //
 // }

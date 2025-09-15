@@ -308,7 +308,7 @@ async function substitutePlayers(
     }
 }
 
-async function getEntrantPlayer(interaction: ChatInputCommandInteraction, tournamentSlug: string, playerDiscordId: string) {
+export async function getEntrantPlayer(interaction: ChatInputCommandInteraction, tournamentSlug: string, playerDiscordId: string) {
     try {
         const newEntrantResponse = await axios.get(
             apiConfig.baseUrl + apiConfig.entrantPlayersEndpoint + `?tournament_slug=${tournamentSlug}&discord_id=${playerDiscordId}`
