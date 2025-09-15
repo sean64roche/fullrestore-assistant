@@ -152,9 +152,10 @@ const finalPoolMessage =
 ` +
 `- The winner of the set is responsible for posting the replays in your scheduling thread, please do not post replays in the live-matches channel. Please tell your pool moderator who the winner is.
 ` +
-`Use the [Discord Timestamp Converter tool](https://sesh.fyi/timestamp/) where necessary to ease scheduling. It shows your local time in contrast to your opponent's local time.
+`- Use the [Discord Timestamp Converter tool](https://sesh.fyi/timestamp/) where necessary to ease scheduling. It shows your local time in contrast to your opponent's local time.
 ` +
-    `You can follow this round at [Full Restore Tournaments r2](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r2).` +
+    `You can follow this round at [Full Restore Tournaments r3](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r3).
+` +
 "- You have until the end of Friday (5 days total) to schedule. If you do not schedule before then, you risk taking an activity loss.\n"
 
 
