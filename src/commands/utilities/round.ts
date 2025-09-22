@@ -154,7 +154,7 @@ const finalPoolMessage =
 ` +
 `- Use the [Discord Timestamp Converter tool](https://sesh.fyi/timestamp/) where necessary to ease scheduling. It shows your local time in contrast to your opponent's local time.
 ` +
-    `You can follow this round at [Full Restore Tournaments r3](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r3).
+    `You can follow this round at [Full Restore Tournaments r4](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r4).
 ` +
 "- You have until the end of Friday (5 days total) to schedule. If you do not schedule before then, you risk taking an activity loss.\n"
 
