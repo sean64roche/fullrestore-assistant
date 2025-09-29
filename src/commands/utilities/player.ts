@@ -62,18 +62,33 @@ export const PLAYER_COMMAND = {
     )
     .addSubcommand(subcommand =>
     subcommand
-    .setName('bye')
+    .setName('add-bye')
     .setDescription('Award proxy win to a player who doesn\'t have an opponent')
-        .addUserOption(option =>
-        option.setName('user')
-            .setDescription('Player to award bye')
-            .setRequired(true)
-        )
         .addIntegerOption(option =>
         option.setName('round')
             .setDescription('Round to award bye on')
             .setRequired(true)
         )
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('Player to award bye')
+                .setRequired(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('remove-bye')
+            .setDescription('remove bye / proxy win from player, if they have one')
+            .addIntegerOption(option =>
+                option.setName('round')
+                    .setDescription('Round to remove bye on')
+                    .setRequired(true)
+            )
+            .addUserOption(option =>
+                option.setName('user')
+                    .setDescription('Player to remove bye')
+                    .setRequired(true)
+            )
     ),
     async execute(interaction: ChatInputCommandInteraction) {
         let tournamentResponse;
@@ -140,7 +155,7 @@ export const PLAYER_COMMAND = {
                         ${error.message}`
                 );
             }
-        } else if (subcommand === 'bye') {
+        } else if (subcommand === 'add-bye') {
             if (!tournamentResponse) {
                 await interaction.reply({
                     content: "No tournament found in this channel.",
@@ -154,6 +169,21 @@ export const PLAYER_COMMAND = {
             await createPlayerBye(interaction, tournamentResponse);
             await interaction.followUp({
                 content: `Bye successfully added on Round ${interaction.options.getInteger('round')!} for ${playerMember}`,
+            });
+        } else if (subcommand === 'remove-bye') {
+            if (!tournamentResponse) {
+                await interaction.reply({
+                    content: "No tournament found in this channel.",
+                    flags: MessageFlags.Ephemeral,
+                });
+                return;
+            }
+            await interaction.reply({
+                content: `Removing bye from ${playerMember}...`,
+            });
+            await removePlayerBye(interaction, tournamentResponse);
+            await interaction.followUp({
+                content: `Bye successfully removed on Round ${interaction.options.getInteger('round')!} from ${playerMember}`,
             });
         }
     }
@@ -205,6 +235,25 @@ async function createPlayerBye(interaction: ChatInputCommandInteraction, tournam
     } catch (e) {
         await interaction.followUp(
             `Error on creating bye: 
+                ${JSON.stringify(e.response?.data || e.message)}`
+        );
+        return;
+    }
+}
+
+async function removePlayerBye(interaction: ChatInputCommandInteraction, tournament: TournamentResponse) {
+    const roundNumber = interaction.options.getInteger('round')!;
+    const userId = interaction.options.getUser('user')!.id;
+    const round = await getRound(interaction, tournament.slug, roundNumber);
+    const entrant = await getEntrantPlayer(interaction, tournament.slug, userId);
+    try {
+        const byeResponse = await axios.get(
+            apiConfig.baseUrl + apiConfig.roundByesEndpoint +`?round_id=${round.id}&entrant_player_id=${entrant.id}`
+        );
+        await axios.delete(apiConfig.baseUrl + apiConfig.roundByesEndpoint + `/${byeResponse.data[0].id}`);
+    } catch (e) {
+        await interaction.followUp(
+            `Error on deleting bye: 
                 ${JSON.stringify(e.response?.data || e.message)}`
         );
         return;
