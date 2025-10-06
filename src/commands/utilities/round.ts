@@ -4,7 +4,7 @@ import {
     ChatInputCommandInteraction,
     codeBlock,
     MessageFlags,
-    PermissionFlagsBits,
+    PermissionFlagsBits, Role,
     SlashCommandBuilder,
     Snowflake,
     TextChannel,
@@ -154,7 +154,7 @@ const finalPoolMessage =
 ` +
 `- Use the [Discord Timestamp Converter tool](https://sesh.fyi/timestamp/) where necessary to ease scheduling. It shows your local time in contrast to your opponent's local time.
 ` +
-    `You can follow this round at [Full Restore Tournaments r5](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r5).
+    `You can follow this round at [Full Restore Tournaments r6](https://fullrestore.me/tournament/adv-revival-2025:-swiss-stage/r6).
 ` +
 "- You have until the end of Friday (5 days total) to schedule. If you do not schedule before then, you risk taking an activity loss.\n"
 
@@ -162,7 +162,7 @@ const finalPoolMessage =
 async function pairPlayers(interaction: ChatInputCommandInteraction) {
     let buf = '';
     const pool = interaction.options.getChannel('pool')! as TextChannel;
-    const poolRole = interaction.options.getRole('role')!;
+    const poolRole = interaction.options.getRole('role')! as Role;
     const moderator = interaction.options.getUser('moderator')!;
     const currentRound = interaction.options.getInteger('round')!;
     const deadline = interaction.options.getString('deadline')!;
@@ -234,6 +234,7 @@ async function pairPlayers(interaction: ChatInputCommandInteraction) {
             pool,
             leftPlayer.user,
             rightPlayer.user,
+            poolRole,
             moderator,
             deadline,
         );

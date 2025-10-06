@@ -2,7 +2,7 @@ import {
     ChannelType,
     ChatInputCommandInteraction,
     MessageFlags,
-    PermissionFlagsBits,
+    PermissionFlagsBits, Role,
     SlashCommandBuilder,
     TextChannel,
     ThreadChannel,
@@ -193,6 +193,7 @@ async function createPairing(
             interaction.options.getChannel('pool')!,
             interaction.options.getUser('player1')!,
             interaction.options.getUser('player2')!,
+            interaction.options.getRole('role')! as Role,
             interaction.options.getUser('moderator')!,
             interaction.options.getString('deadline')!
         )
