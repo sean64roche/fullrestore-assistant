@@ -39,7 +39,7 @@ export const TOURNAMENT_COMMAND = {
             )
             .addChannelOption(option =>
                 option.setName('admin-channel')
-                    .setDescription('Channel where players will sign-up as an entrant')
+                    .setDescription('Channel for running administrative commands on this bot')
                     .setRequired(true)
             )
             .addRoleOption(option =>
